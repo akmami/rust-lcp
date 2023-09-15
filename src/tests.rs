@@ -5,12 +5,19 @@ use crate::encoding::COEFFICIENTS;
 use crate::encoding::CHARACTERS;
 use crate::encoding::DICT_BIT_SIZE;
 use std::collections::HashMap;
+use crate::core::Core;
 //use std::sync::Mutex;
 
 //static mtx: Mutex<i32>= Mutex::new(0);
 
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+// TESTS FOR ENCODING
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
 #[test]
-fn test1() {
+fn test_encoding_default() {
     //let guard = mtx.lock().unwrap();
     unsafe {
         let verbose = true;
@@ -37,7 +44,7 @@ fn test1() {
 
 
 #[test]
-fn test2() {
+fn test_encoding_map() {
     //let guard = mtx.lock().unwrap();
     unsafe {
         let verbose = true;
@@ -66,7 +73,7 @@ fn test2() {
 
 
 #[test]
-fn test3() {
+fn test_encoding_file() {
     //let guard = mtx.lock().unwrap();
     unsafe {
         let verbose = true;
@@ -84,6 +91,30 @@ fn test3() {
         assert_eq!(CHARACTERS[1], 't');
 
         assert_eq!(DICT_BIT_SIZE, 2);
+    }
+    //drop(guard);
+}
+
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+// TESTS FOR CORE
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+#[test]
+fn test_core_encoding() {
+    //let guard = mtx.lock().unwrap();
+
+    // A/a=0, T/t=3, G/g=2, C/c=1
+    unsafe {
+        let verbose = true;
+        init_coefficients_default(verbose);
+
+        let core: Core = Core::new(1, 6, "ATGTC");
+
+        assert_eq!(core.get_block_number(), 2);
+        assert_eq!(core.get_start_index(), 6);
+        assert_eq!(core.get_blocks(), [0b00, 0b11101101]);
     }
     //drop(guard);
 }
