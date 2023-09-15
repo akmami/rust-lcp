@@ -53,7 +53,7 @@ fn test_encoding_map() {
             ('c', 0),
             ('t', 1),
             ('g', 2)
-        ]);
+            ]);
         init_coefficients_map(map, verbose);
         
         assert_eq!(COEFFICIENTS['a' as usize], 3);
