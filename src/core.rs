@@ -4,6 +4,7 @@ use crate::statics::SIZE_PER_BLOCK;
 use crate::statics::COMPRESSION_ITERATION_COUNT;
 use crate::statics::CORE_LENGTH;
 use std::mem;
+use std::cmp;
 
 pub struct Core {
 	// Represenation related variables
@@ -29,10 +30,10 @@ impl Core {
 			let ptr: *mut u8 = buf.as_mut_ptr();
 			// prevent the buffer from being deallocated when it goes out of scope
 			mem::forget(buf);
-		    
+
 			// clear dumps
-			for _ in 0..block_number {
-				let _ = *ptr.add(0);
+			for i in 0..block_number {
+				*ptr.add(i.try_into().unwrap()) &= 0;
 			}
 
 			// Encoding string to bits
@@ -43,7 +44,7 @@ impl Core {
 				coefficient = COEFFICIENTS[ch as usize];
 				for i in (0..DICT_BIT_SIZE).rev() {
 					if coefficient % 2 == 1 {
-						*(ptr.wrapping_add( ( (start_index + index + (i as u32) ) / SIZE_PER_BLOCK ) as usize ) ) |= 1 << ( SIZE_PER_BLOCK - ( (start_index + index + (i as u32) ) % SIZE_PER_BLOCK ) - 1 )  as u8;
+						*ptr.add( ( (start_index + index + (i as u32) ) / SIZE_PER_BLOCK ) as usize ) |= 1 << ( SIZE_PER_BLOCK - ( (start_index + index + (i as u32) ) % SIZE_PER_BLOCK ) - 1 )  as u8;
 					}
 					coefficient = coefficient / 2;
 				}
@@ -60,11 +61,101 @@ impl Core {
 		}
 	}
 
+	pub fn compress(&mut self, other: &Core) {
+		let mut o_block_index = other.block_number - 1;
+		let mut t_block_index = self.block_number - 1;
+		let o_values = unsafe { std::slice::from_raw_parts(other.ptr, other.block_number as usize) };
+		let t_values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
+		let mut o: u8 = o_values[o_block_index as usize];
+		let mut t: u8 = t_values[t_block_index as usize];
+
+		let mut current_index = 0;
+		let mut new_bit_size = 0;
+		let mut temp = 0;
+
+		while o_block_index > 0 && t_block_index > 0 && o == t {
+			o_block_index -= 1;
+			t_block_index -= 1;
+			o = o_values[o_block_index as usize];
+			t = t_values[t_block_index as usize];
+
+		}
+
+		if o_block_index > 0 {
+			if t_block_index > 0 {
+				current_index = 0;
+			} else {
+				current_index = self.start_index;
+			}
+		} else {
+			if t_block_index > 0 {
+				current_index = other.start_index;
+			} else {
+				current_index = cmp::max(other.start_index, self.start_index);
+			}
+		}
+
+		while current_index < SIZE_PER_BLOCK && o % 2 == t % 2 {
+			o /= 2;
+			t /= 2;
+			current_index += 1;
+			temp += 1;
+		}
+
+		let mut index = 2 * ( (self.block_number - t_block_index - 1) * SIZE_PER_BLOCK + temp) + ( t as u32 ) % 2;
+
+		new_bit_size = 0;
+		temp = index;
+		while temp != 0 {
+			new_bit_size += 1;
+			temp /= 2;
+		}
+
+		if new_bit_size < 3 {
+			new_bit_size = 2;
+		}
+
+		// Compressed value is: index
+
+		// deallocate previous core
+		unsafe {
+			Vec::from_raw_parts(self.ptr, self.block_number as usize, self.block_number as usize);
+		}
+
+		// Change this object according to  the new values represents compressed version.
+		self.block_number = (new_bit_size - 1) / SIZE_PER_BLOCK + 1;
+		self.start_index = self.block_number * SIZE_PER_BLOCK - new_bit_size;
+
+		// create a new mutable buffer with capacity `block_number`
+		let mut buf = Vec::with_capacity(self.block_number.try_into().unwrap());
+		// take a mutable pointer to the buffer
+		self.ptr = buf.as_mut_ptr();
+		// prevent the buffer from being deallocated when it goes out of scope
+		mem::forget(buf);
+		
+		// clear dumps
+		for i in 0..self.block_number {
+			unsafe { *(self.ptr).add(i.try_into().unwrap()) &= 0; }
+		}
+
+		// Set bits block by block and avoid unnecesary assignments
+		temp = 0;
+
+		for i in index.to_le_bytes().iter().rev() {
+			if *i == 0 {
+				continue;
+			}
+			unsafe { *(self.ptr).add(temp.try_into().unwrap()) = *i as u8; }
+			temp += 1;
+		}
+	}
+
 	pub fn show(&self) {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
 		for value in values {
 			print!("{:b}", value);
 		}
+		println!();
 	}
 
 	pub fn get_blocks(&self) -> &[u8] {
