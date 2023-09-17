@@ -5,7 +5,10 @@ use crate::statics::COMPRESSION_ITERATION_COUNT;
 use crate::statics::CORE_LENGTH;
 use std::mem;
 use std::cmp;
+use std::cmp::Ordering;
 
+
+#[derive(Eq, Ord)]
 pub struct Core {
 	// Represenation related variables
 	ptr: *mut u8,
@@ -178,4 +181,128 @@ impl Drop for Core {
 			Vec::from_raw_parts(self.ptr, self.block_number as usize, self.block_number as usize);
 		}
 	}
+}
+
+
+impl PartialEq for Core {
+    fn eq(&self, other: &Self) -> bool {
+
+    	if self.block_number != other.block_number {
+    		return false;
+    	}
+
+    	if self.start_index != other.start_index {
+    		return false;
+    	}
+
+    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+    		if self_block != other_block {
+    			return false;
+    		}
+    	}
+    	return true;
+    }
+}
+
+impl PartialOrd for Core {
+
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+
+	fn lt(&self, other: &Self) -> bool { 
+		if self.block_number < other.block_number {
+    		return true;
+    	} else if self.block_number > other.block_number {
+    		return false;
+    	}
+
+    	if self.start_index > other.start_index {
+    		return true;
+    	} else if self.start_index < other.start_index {
+    		return false;
+    	}
+
+    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+    		if self_block < other_block {
+    			return true;
+    		} else if self_block > other_block {
+    			return false;
+    		}
+    	}
+
+    	return false;
+	}
+
+    fn le(&self, other: &Self) -> bool {
+    	if self.block_number < other.block_number {
+    		return true;
+    	} else if self.block_number > other.block_number {
+    		return false;
+    	}
+
+    	if self.start_index > other.start_index {
+    		return true;
+    	} else if self.start_index < other.start_index {
+    		return false;
+    	}
+
+    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+    		if self_block < other_block {
+    			return true;
+    		} else if self_block > other_block {
+    			return false;
+    		}
+    	}
+
+    	return true;
+    }
+    
+    fn gt(&self, other: &Self) -> bool {
+    	if self.block_number > other.block_number {
+    		return true;
+    	} else if self.block_number < other.block_number {
+    		return false;
+    	}
+
+    	if self.start_index < other.start_index {
+    		return true;
+    	} else if self.start_index > other.start_index {
+    		return false;
+    	}
+
+    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+    		if self_block > other_block {
+    			return true;
+    		} else if self_block < other_block {
+    			return false;
+    		}
+    	}
+
+    	return false;
+    }
+    
+    fn ge(&self, other: &Self) -> bool {
+    	if self.block_number > other.block_number {
+    		return true;
+    	} else if self.block_number < other.block_number {
+    		return false;
+    	}
+
+    	if self.start_index < other.start_index {
+    		return true;
+    	} else if self.start_index > other.start_index {
+    		return false;
+    	}
+
+    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+    		if self_block > other_block {
+    			return true;
+    		} else if self_block < other_block {
+    			return false;
+    		}
+    	}
+
+    	return true;
+    }
 }
