@@ -20,7 +20,65 @@ pub struct Core {
 	end: u32,
 }
 
+
 impl Core {
+
+	pub fn new2(start: u32, end:u32, ch: char) -> Self {
+		unsafe {
+
+			if DICT_BIT_SIZE >= SIZE_PER_BLOCK {
+				let block_number: u32 = ( DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
+				let start_index: u32 = block_number * SIZE_PER_BLOCK - DICT_BIT_SIZE;
+
+				// create a new mutable buffer with capacity `block_number`
+				let mut buf = Vec::with_capacity(block_number.try_into().unwrap());
+				// take a mutable pointer to the buffer
+				let ptr: *mut u8 = buf.as_mut_ptr();
+				// prevent the buffer from being deallocated when it goes out of scope
+				mem::forget(buf);
+
+				// clear dumps
+				for i in 0..block_number {
+					*ptr.add(i.try_into().unwrap()) &= 0;
+				}
+				// Encoding string to bits
+				let mut coefficient: i32 = COEFFICIENTS[ch as usize];
+				let mut index: u32 = block_number - 1;
+
+				while coefficient > 0 {
+					*ptr.add( index as usize ) |= ( coefficient % 8 ) as u8;
+					coefficient = coefficient / 2;
+					index -= 1;
+				}
+
+				return Core {
+					ptr: ptr,
+					block_number: block_number,
+					start_index: start_index,
+					start: start,
+					end: end
+				};
+			}
+
+			// create a new mutable buffer with capacity `block_number`
+			let mut buf = Vec::with_capacity(1);
+			// take a mutable pointer to the buffer
+			let ptr: *mut u8 = buf.as_mut_ptr();
+			// prevent the buffer from being deallocated when it goes out of scope
+			mem::forget(buf);
+
+			*ptr.add(0) &= 0;
+			*ptr.add(0) |= COEFFICIENTS[ch as usize] as u8;
+
+			Core {
+				ptr: ptr,
+				block_number: 1,
+				start_index: SIZE_PER_BLOCK - DICT_BIT_SIZE,
+				start: start,
+				end: end
+			}
+		}
+	}
 
 	pub fn new(start: u32, end:u32, string: &str) -> Self {
 		unsafe {
@@ -175,6 +233,7 @@ impl Core {
 	}
 }
 
+
 impl Drop for Core {
 	fn drop(&mut self) {
 		unsafe {
@@ -203,6 +262,7 @@ impl PartialEq for Core {
     	return true;
     }
 }
+
 
 impl PartialOrd for Core {
 
