@@ -1,8 +1,8 @@
 use crate::encoding::COEFFICIENTS;
 use crate::encoding::DICT_BIT_SIZE;
+use crate::encoding::ENCODING_INITIALIZED;
+use crate::encoding::init_coefficients_default;
 use crate::statics::SIZE_PER_BLOCK;
-use crate::statics::COMPRESSION_ITERATION_COUNT;
-use crate::statics::CORE_LENGTH;
 use std::mem;
 use std::cmp;
 use std::cmp::Ordering;
@@ -24,7 +24,12 @@ pub struct Core {
 impl Core {
 
 	pub fn new2(start: u32, end:u32, ch: char) -> Self {
+
 		unsafe {
+
+			if !ENCODING_INITIALIZED {
+				init_coefficients_default(false);
+			}
 
 			if DICT_BIT_SIZE >= SIZE_PER_BLOCK {
 				let block_number: u32 = ( DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
@@ -81,7 +86,13 @@ impl Core {
 	}
 
 	pub fn new(start: u32, end:u32, string: &str) -> Self {
+
 		unsafe {
+
+			if !ENCODING_INITIALIZED {
+				init_coefficients_default(false);
+			}
+
 			let block_number: u32 = ( ( string.len() as u32 ) * DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
 			let start_index: u32 = block_number * SIZE_PER_BLOCK - ( string.len() as u32 ) * DICT_BIT_SIZE;
 
@@ -98,7 +109,7 @@ impl Core {
 			}
 
 			// Encoding string to bits
-			let mut coefficient: i32 = 0;
+			let mut coefficient: i32;
 			let mut index: u32 = 0;
 
 			for ch in string.chars() { 
@@ -130,8 +141,8 @@ impl Core {
 		let mut o: u8 = o_values[o_block_index as usize];
 		let mut t: u8 = t_values[t_block_index as usize];
 
-		let mut current_index = 0;
-		let mut new_bit_size = 0;
+		let mut current_index;
+		let mut new_bit_size;
 		let mut temp = 0;
 
 		while o_block_index > 0 && t_block_index > 0 && o == t {
@@ -163,7 +174,7 @@ impl Core {
 			temp += 1;
 		}
 
-		let mut index = 2 * ( (self.block_number - t_block_index - 1) * SIZE_PER_BLOCK + temp) + ( t as u32 ) % 2;
+		let index = 2 * ( (self.block_number - t_block_index - 1) * SIZE_PER_BLOCK + temp) + ( t as u32 ) % 2;
 
 		new_bit_size = 0;
 		temp = index;

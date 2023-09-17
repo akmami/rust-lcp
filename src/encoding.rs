@@ -7,6 +7,7 @@ use std::path::Path;
 pub static mut COEFFICIENTS: [i32; 128] = [-1; 128];
 pub static mut CHARACTERS: [char; 128] = [126 as char; 128];
 pub static mut DICT_BIT_SIZE: u32 = 0;
+pub static mut ENCODING_INITIALIZED: bool = false;
 
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -49,6 +50,8 @@ pub unsafe fn init_coefficients_default(verbose: bool) {
     if verbose { 
         encoding_summary(); 
     }
+
+    ENCODING_INITIALIZED = true;
 }
 
 pub unsafe fn init_coefficients_map(map: HashMap<char, i32>, verbose: bool) {
@@ -81,6 +84,8 @@ pub unsafe fn init_coefficients_map(map: HashMap<char, i32>, verbose: bool) {
     if verbose { 
         encoding_summary(); 
     }
+
+    ENCODING_INITIALIZED = true;
 }
 
 pub unsafe fn init_coefficients_file(_encoding_file: &str, verbose: bool) {
