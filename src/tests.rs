@@ -102,7 +102,7 @@ fn test_encoding_file() {
 //------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 #[test]
-fn test_core_encoding() {
+fn test_core_encoding_str() {
     //let guard = mtx.lock().unwrap();
 
     // A/a=0, T/t=3, G/g=2, C/c=1
@@ -115,6 +115,25 @@ fn test_core_encoding() {
         assert_eq!(core.get_block_number(), 2);
         assert_eq!(core.get_start_index(), 6);
         assert_eq!(core.get_blocks(), [0b00, 0b11101101]);
+    }
+    //drop(guard);
+}
+
+
+#[test]
+fn test_core_encoding_ch() {
+    //let guard = mtx.lock().unwrap();
+
+    // A/a=0, T/t=3, G/g=2, C/c=1
+    unsafe {
+        let verbose = true;
+        init_coefficients_default(verbose);
+
+        let core: Core = Core::new2(1, 6, 'C');
+
+        assert_eq!(core.get_block_number(), 1);
+        assert_eq!(core.get_start_index(), 6);
+        assert_eq!(core.get_blocks(), [0b01]);
     }
     //drop(guard);
 }
