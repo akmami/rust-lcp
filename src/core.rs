@@ -222,6 +222,12 @@ impl Core {
 		}
 	}
 
+	#[inline(always)]
+	pub fn get_bit_count(&self) -> u32 {
+		self.block_number * SIZE_PER_BLOCK - self.start_index
+	}
+
+	#[inline(always)]
 	pub fn show(&self) {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
 		for value in values {
@@ -230,15 +236,18 @@ impl Core {
 		println!();
 	}
 
+	#[inline(always)]
 	pub fn get_blocks(&self) -> &[u8] {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
 		return values;
 	}
 
+	#[inline(always)]
 	pub fn get_block_number(&self) -> u32 {
 		self.block_number
 	}
 
+	#[inline(always)]
 	pub fn get_start_index(&self) -> u32 {
 		self.start_index
 	}
