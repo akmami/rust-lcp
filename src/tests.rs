@@ -6,6 +6,9 @@ use crate::encoding::CHARACTERS;
 use crate::encoding::DICT_BIT_SIZE;
 use std::collections::HashMap;
 use crate::core::Core;
+use crate::String;
+
+
 //use std::sync::Mutex;
 
 //static mtx: Mutex<i32>= Mutex::new(0);
@@ -310,6 +313,28 @@ fn test_core_comparison_cmp() {
         let core12: Core = Core::new(2, 8, "ATGTGCT");
         
         assert_eq!(core11 > core12, false);
+    }
+    //drop(guard);
+}
+
+
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+// TESTS FOR STRING
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+#[test]
+fn test_string_init() {
+    //let guard = mtx.lock().unwrap();
+
+    // A/a=0, T/t=3, G/g=2, C/c=1
+    unsafe {
+        let verbose = true;
+        init_coefficients_default(verbose);
+
+        let string: String = String::new("GGGACCTGGTGACCCCAGCCCACGACAGCCAAGCGCCAGCTGAGCTCAGGTGTGAGGAGATCACAGTCCTCTGTAATAGGCTGTCCG", Some(5));
+
+        assert_eq!(string.get_small_cores(), [0b00010111, 0b11101011, 0b000101010100, 0b1001010100, 0b0110000100, 0b0001001001, 0b10010100, 0b01000010, 0b10010100, 0b1001111000, 0b1110001001, 0b1001110100, 0b00101011, 0b1011101110, 0b00101000, 0b0010001101, 0b1101000100, 0b0001001011, 0b11010111, 0b0111011110, 0b11000011, 0b00101001, 0b11010110]);
     }
     //drop(guard);
 }
