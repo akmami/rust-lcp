@@ -112,17 +112,23 @@ impl String {
 
             if self.cores.len() < 2 { return; }
 
-            let mut next_iter = self.cores.iter().rev();
-            next_iter.next();
+            let end = self.cores.len();
 
-            for rhs in self.cores.iter().rev() {
-                let lhs = next_iter.next();
+            let mut mut_iter = self.cores.iter_mut().rev();
+            let mut lhs = mut_iter.next().unwrap();
+            
+            let mut index = 1;
+
+            while index < end {
+                let rhs = mut_iter.next().unwrap();
+
+                index += 1;
                 
-                if lhs == None { break; }
-
-                rhs.compress(lhs.unwrap());
+                rhs.compress(lhs);
 
                 max_bit_length = cmp::max(max_bit_length, rhs.get_bit_count());
+
+                lhs = rhs;
             }
 
             self.cores.pop_front();
@@ -168,7 +174,7 @@ impl String {
             }
 
             // if there is no subsequent characters such as xyzuv where z!=y and y!=z and z!=u and u!=v
-            let mut min_value = self.cores[index1];
+            let mut min_value = &self.cores[index1];
             let mut max_value = min_value;
 
             index2 = index1 + 1;
@@ -178,20 +184,20 @@ impl String {
             while index2 < index1 + core_length {
                 if self.cores[index2-1] == self.cores[index2] { break; }
 
-                if min_value > self.cores[index2] { min_value = self.cores[index2]; }
+                if min_value > &self.cores[index2] { min_value = &self.cores[index2]; }
                 
-                if max_value < self.cores[index2] { max_value = self.cores[index2]; }
+                if max_value < &self.cores[index2] { max_value = &self.cores[index2]; }
 
                 index2 += 1;
             }
 
             if index2 == index1 + core_length && 
             (
-                min_value == self.cores[index1 + core_length / 2] ||               // local minima
+                min_value == &self.cores[index1 + core_length / 2] ||               // local minima
                 (
-                    max_value == self.cores[index1 + core_length / 2] &&           // local maxima without immediate local minima neighbours
-                    min_value != self.cores[index1 + core_length / 2 - 1] && 
-                    min_value != self.cores[index1 + core_length / 2 + 1] 
+                    max_value == &self.cores[index1 + core_length / 2] &&           // local maxima without immediate local minima neighbours
+                    min_value != &self.cores[index1 + core_length / 2 - 1] && 
+                    min_value != &self.cores[index1 + core_length / 2 + 1] 
                     ) 
                 ) 
             {
