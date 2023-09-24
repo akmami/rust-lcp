@@ -1,8 +1,8 @@
-use crate::encoding::COEFFICIENTS;
-use crate::encoding::DICT_BIT_SIZE;
-use crate::encoding::ENCODING_INITIALIZED;
-use crate::encoding::init_coefficients_default;
+use crate::statics::LABELS;
+use crate::statics::DICT_BIT_SIZE;
+use crate::statics::ENCODING_INIT;
 use crate::statics::SIZE_PER_BLOCK;
+use crate::encoding::init_coefficients_default;
 use std::mem;
 use std::cmp;
 use std::cmp::Ordering;
@@ -12,8 +12,8 @@ use std::cmp::Ordering;
 pub struct Core {
 	// Represenation related variables
 	ptr: *mut u8,
-	block_number: u32,
-	start_index: u32,
+	block_number: usize,
+	start_index: usize,
 
 	// Core related variables
 	start: u32,
@@ -22,18 +22,18 @@ pub struct Core {
 
 
 impl Core {
-
+	
 	pub fn new2(start: u32, end:u32, ch: char) -> Self {
 
 		unsafe {
 
-			if !ENCODING_INITIALIZED {
+			if !ENCODING_INIT {
 				init_coefficients_default(false);
 			}
 
 			if DICT_BIT_SIZE >= SIZE_PER_BLOCK {
-				let block_number: u32 = ( DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
-				let start_index: u32 = block_number * SIZE_PER_BLOCK - DICT_BIT_SIZE;
+				let block_number: usize = ( DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
+				let start_index: usize = block_number * SIZE_PER_BLOCK - DICT_BIT_SIZE;
 
 				// create a new mutable buffer with capacity `block_number`
 				let mut buf = Vec::with_capacity(block_number.try_into().unwrap());
@@ -47,11 +47,11 @@ impl Core {
 					*ptr.add(i.try_into().unwrap()) &= 0;
 				}
 				// Encoding string to bits
-				let mut coefficient: i32 = COEFFICIENTS[ch as usize];
-				let mut index: u32 = block_number - 1;
+				let mut coefficient: i32 = LABELS[ch as usize];
+				let mut index: usize = block_number - 1;
 
 				while coefficient > 0 {
-					*ptr.add( index as usize ) |= ( coefficient % 8 ) as u8;
+					*ptr.add( index ) |= ( coefficient % 8 ) as u8;
 					coefficient = coefficient / 2;
 					index -= 1;
 				}
@@ -73,7 +73,7 @@ impl Core {
 			mem::forget(buf);
 
 			*ptr.add(0) &= 0;
-			*ptr.add(0) |= COEFFICIENTS[ch as usize] as u8;
+			*ptr.add(0) |= LABELS[ch as usize] as u8;
 
 			Core {
 				ptr: ptr,
@@ -89,12 +89,12 @@ impl Core {
 
 		unsafe {
 
-			if !ENCODING_INITIALIZED {
+			if !ENCODING_INIT {
 				init_coefficients_default(false);
 			}
 
-			let block_number: u32 = ( ( string.len() as u32 ) * DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
-			let start_index: u32 = block_number * SIZE_PER_BLOCK - ( string.len() as u32 ) * DICT_BIT_SIZE;
+			let block_number: usize = ( string.len() * DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
+			let start_index: usize = block_number * SIZE_PER_BLOCK - string.len() * DICT_BIT_SIZE;
 
 			// create a new mutable buffer with capacity `block_number`
 			let mut buf = Vec::with_capacity(block_number.try_into().unwrap());
@@ -109,14 +109,14 @@ impl Core {
 			}
 
 			// Encoding string to bits
-			let mut coefficient: i32;
-			let mut index: u32 = 0;
+			let mut coefficient: usize;
+			let mut index: usize = 0;
 
 			for ch in string.chars() { 
-				coefficient = COEFFICIENTS[ch as usize];
+				coefficient = LABELS[ch as usize] as usize;
 				for i in (0..DICT_BIT_SIZE).rev() {
 					if coefficient % 2 == 1 {
-						*ptr.add( ( (start_index + index + (i as u32) ) / SIZE_PER_BLOCK ) as usize ) |= 1 << ( SIZE_PER_BLOCK - ( (start_index + index + (i as u32) ) % SIZE_PER_BLOCK ) - 1 )  as u8;
+						*ptr.add( ( start_index + index + i ) / SIZE_PER_BLOCK ) |= 1 << ( SIZE_PER_BLOCK - ( start_index + index + i ) % SIZE_PER_BLOCK - 1 )  as u8;
 					}
 					coefficient = coefficient / 2;
 				}
@@ -174,7 +174,7 @@ impl Core {
 			temp += 1;
 		}
 
-		let index = 2 * ( (self.block_number - t_block_index - 1) * SIZE_PER_BLOCK + temp) + ( t as u32 ) % 2;
+		let index = 2 * ( (self.block_number - t_block_index - 1) * SIZE_PER_BLOCK + temp ) + ( t as usize ) % 2;
 
 		new_bit_size = 0;
 		temp = index;
@@ -223,11 +223,13 @@ impl Core {
 	}
 
 	#[inline(always)]
-	pub fn get_bit_count(&self) -> u32 {
+	#[allow(dead_code)]
+	pub fn get_bit_count(&self) -> usize {
 		self.block_number * SIZE_PER_BLOCK - self.start_index
 	}
 
 	#[inline(always)]
+	#[allow(dead_code)]
 	pub fn show(&self) {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
 		for value in values {
@@ -237,18 +239,21 @@ impl Core {
 	}
 
 	#[inline(always)]
+	#[allow(dead_code)]
 	pub fn get_blocks(&self) -> &[u8] {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
 		return values;
 	}
 
 	#[inline(always)]
-	pub fn get_block_number(&self) -> u32 {
+	#[allow(dead_code)]
+	pub fn get_block_number(&self) -> usize {
 		self.block_number
 	}
 
 	#[inline(always)]
-	pub fn get_start_index(&self) -> u32 {
+	#[allow(dead_code)]
+	pub fn get_start_index(&self) -> usize {
 		self.start_index
 	}
 }
