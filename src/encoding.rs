@@ -3,42 +3,62 @@ use std::cmp;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+use crate::statics::LABELS;
+use crate::statics::CHARACTERS;
+use crate::statics::DICT_BIT_SIZE;
+use crate::statics::ENCODING_INIT;
+use crate::statics::LOG_INIT;
+use std::env;
+use std::process;
+use log::{info, error};
 
-pub static mut COEFFICIENTS: [i32; 128] = [-1; 128];
-pub static mut CHARACTERS: [char; 128] = [126 as char; 128];
-pub static mut DICT_BIT_SIZE: u32 = 0;
-pub static mut ENCODING_INITIALIZED: bool = false;
 
-
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+#[allow(dead_code)]
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
 
-pub unsafe fn encoding_summary() {
-    println!("# Alphabet encoding summary");
-    println!("# Coefficients: ");
-    for i in 0..128 {
-        if COEFFICIENTS[i] != -1 {
-            print!("{}: {}, ", (i as u8) as char,  COEFFICIENTS[i]);
-        }
+
+#[allow(dead_code)]
+pub unsafe fn init_logging(verbose: bool) {
+
+    if LOG_INIT == true {
+        return;
     }
-    println!();
-    println!("# Dictionary bit size: {}", DICT_BIT_SIZE);
+
+    if verbose == true {
+        env::set_var("RUST_LOG", "main");
+        env_logger::init();
+    } else {
+        env::remove_var("RUST_LOG");
+    }
+    LOG_INIT = true;
 }
 
+
+#[allow(dead_code)]
+pub unsafe fn encoding_summary() {
+    info!("# Alphabet encoding summary");
+    info!("# Coefficients: {:?}", LABELS.into_iter().enumerate().filter(|&(_i, v)| v != -1).map(|(i, e)| ((i as u8) as char, e)).collect::<Vec<_>>());
+    info!("# Dictionary bit size: {}", DICT_BIT_SIZE);
+}
+
+
+#[allow(dead_code)]
 pub unsafe fn init_coefficients_default(verbose: bool) {
-    
-    COEFFICIENTS = [-1; 128];
+
+    init_logging(verbose);
+
+    LABELS = [-1; 128];
     CHARACTERS = [126 as char; 128];
 
     // init coefficients A/a=0, T/t=3, G/g=2, C/c=1
     
-    COEFFICIENTS['A' as usize] = 0; COEFFICIENTS['a' as usize] = 0;
-    COEFFICIENTS['T' as usize] = 3; COEFFICIENTS['t' as usize] = 3;
-    COEFFICIENTS['G' as usize] = 2; COEFFICIENTS['g' as usize] = 2;
-    COEFFICIENTS['C' as usize] = 1; COEFFICIENTS['c' as usize] = 1;
+    LABELS['A' as usize] = 0; LABELS['a' as usize] = 0;
+    LABELS['T' as usize] = 3; LABELS['t' as usize] = 3;
+    LABELS['G' as usize] = 2; LABELS['g' as usize] = 2;
+    LABELS['C' as usize] = 1; LABELS['c' as usize] = 1;
     
     CHARACTERS[0] = 'A';
     CHARACTERS[1] = 'C';
@@ -47,27 +67,36 @@ pub unsafe fn init_coefficients_default(verbose: bool) {
 
     DICT_BIT_SIZE = 2;
 
-    if verbose { 
-        encoding_summary(); 
+    if DICT_BIT_SIZE > 6 {
+        error!("Dictionary bit size is : {}. This cannot be greater than 6. Please provide labels with values less then 64.", DICT_BIT_SIZE);
+        process::exit(1);
     }
 
-    ENCODING_INITIALIZED = true;
+    encoding_summary(); 
+
+    ENCODING_INIT = true;
 }
 
+
+#[allow(dead_code)]
 pub unsafe fn init_coefficients_map(map: HashMap<char, i32>, verbose: bool) {
 
-    COEFFICIENTS = [-1; 128];
+    init_logging(verbose);
+
+    LABELS = [-1; 128];
     CHARACTERS = [126 as char; 128];
 
     // init coefficients A/a=0, T/t=3, G/g=2, C/c=1
 
-    let mut max_value = -1;
+    let mut max_value = 0;
     
     for (key, value) in map.into_iter() {
+
         if value < 0 {
-            println!("Invalid value given. key: {}, value: {}", key, value);   
+            error!("Invalid value ({}) provided for {}", value, key);
+            process::exit(1);
         }
-        COEFFICIENTS[key as usize] = value;
+        LABELS[key as usize] = value;
         CHARACTERS[value as usize] = key;
         max_value = cmp::max(max_value, value);
     };
@@ -81,16 +110,21 @@ pub unsafe fn init_coefficients_map(map: HashMap<char, i32>, verbose: bool) {
 
     DICT_BIT_SIZE = bit_count;
 
-    if verbose { 
-        encoding_summary(); 
+    if DICT_BIT_SIZE > 6 {
+        error!("Dictionary bit size is : {}. This cannot be >6. Please provide labels with smaller values.", DICT_BIT_SIZE);
+        process::exit(1);
     }
 
-    ENCODING_INITIALIZED = true;
+    encoding_summary(); 
+
+    ENCODING_INIT = true;
 }
 
+
+#[allow(dead_code)]
 pub unsafe fn init_coefficients_file(_encoding_file: &str, verbose: bool) {
 
-    COEFFICIENTS = [-1; 128];
+    LABELS = [-1; 128];
     CHARACTERS = [126 as char; 128];
 
     let mut map: HashMap<char, i32> = HashMap::new();
@@ -101,7 +135,7 @@ pub unsafe fn init_coefficients_file(_encoding_file: &str, verbose: bool) {
                 let splitted: Vec<&str>= ip.split(" ").collect();
                 assert_eq!(splitted.len(), 2);
                 assert_eq!(splitted[0].len(), 1);
-                map.insert(splitted[0].chars().next().expect("string is empty"), splitted[1].parse().unwrap());
+                map.insert(splitted[0].chars().next().expect("string is empty"), splitted[1].parse::<i32>().unwrap());
             }
         }
     }
