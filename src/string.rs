@@ -3,27 +3,34 @@ mod encoding;
 mod core;
 use crate::statics::COMPRESSION_ITERATION_COUNT;
 use crate::statics::CORE_LENGTH;
-use crate::encoding::COEFFICIENTS;
+use crate::statics::LABELS;
 use crate::core::Core;
 use std::cmp;
 use std::collections::VecDeque;
+use log::{info, error};
+
 
 pub struct String {
-	level: u32,
-	cores: VecDeque<Core>
+    level: u32,
+    cores: VecDeque<Core>
 }
 
 
 impl String {
 
-    pub fn new(string: &str, core_len: Option<u32>) -> Self {
+    pub fn new(string: &str) -> Self {
         unsafe {
-            if string.len() < 3 { panic!("Given string is too small!"); }
+            if string.len() < 3 { 
+                error!("Given string ({}) is too small!", string); 
+                return String {
+                    level: 1,
+                    cores: VecDeque::new()
+                };
+            }
 
             let mut index1: usize = 0;
             let mut index2: usize;
             let end = string.len();
-            let core_length = core_len.unwrap_or(CORE_LENGTH) as usize;
             let read = string.as_bytes();
             let mut cores: VecDeque<Core> = VecDeque::new();
             let mut min_value: i32;
@@ -38,7 +45,7 @@ impl String {
                 if read[index1] == read[index1+1] { index1 += 1; continue; }
                 
                 // if there are same characters in subsequenct order such as xyyz, xyyyz, .... where x!=y and y!=z
-                if COEFFICIENTS[read[index1+1] as usize] == COEFFICIENTS[read[index1+2] as usize] {
+                if LABELS[read[index1+1] as usize] == LABELS[read[index1+2] as usize] {
 
                     index2 = index1 + 3;
 
@@ -50,43 +57,47 @@ impl String {
 
                     index2 += 1;
                     cores.push_back( Core::new(index1 as u32, index2 as u32, std::str::from_utf8(&read[index1..index2]).unwrap() ) );
+                    println!("found {} at index {}", std::str::from_utf8(&read[index1..index2]).unwrap(), index1);
                     index1 = index2 - 3;
-
+                    
                     continue;
                 }
-
+                index2 = index1 + 5;
                 // if there is no subsequent characters such as xyzuv where z!=y and y!=z and z!=u and u!=v
-                min_value = COEFFICIENTS[read[index1] as usize];
+                println!("Processing {}", std::str::from_utf8(&read[index1..index2]).unwrap());
+                min_value = LABELS[read[index1] as usize];
                 max_value = min_value;
 
                 index2 = index1 + 1;
 
-                if index1 + core_length >= end { index1 += 1; continue; }
+                if index1 + CORE_LENGTH >= end { index1 += 1; continue; }
 
-                while index2 < index1 + core_length {
+                while index2 < index1 + CORE_LENGTH {
                     if read[index2-1] == read[index2] { break; }
 
-                    if min_value > COEFFICIENTS[read[index2] as usize] { min_value = COEFFICIENTS[read[index2] as usize]; }
+                    if min_value > LABELS[read[index2] as usize] { min_value = LABELS[read[index2] as usize]; }
                     
-                    if max_value < COEFFICIENTS[read[index2] as usize] { max_value = COEFFICIENTS[read[index2] as usize]; }
+                    if max_value < LABELS[read[index2] as usize] { max_value = LABELS[read[index2] as usize]; }
 
                     index2 += 1;
                 }
 
-                if index2 == index1 + core_length && 
+                if index2 == index1 + CORE_LENGTH && 
                 (
-                    min_value == COEFFICIENTS[read[index1 + core_length / 2] as usize] ||               // local minima
+                    min_value == LABELS[read[index1 + CORE_LENGTH / 2] as usize] ||               // local minima
                     (
-                        max_value == COEFFICIENTS[read[index1 + core_length / 2] as usize] &&           // local maxima without immediate local minima neighbours
-                        min_value != COEFFICIENTS[read[index1 + core_length / 2 - 1] as usize] && 
-                        min_value != COEFFICIENTS[read[index1 + core_length / 2 + 1] as usize] 
+                        max_value == LABELS[read[index1 + CORE_LENGTH / 2] as usize] &&           // local maxima without immediate local minima neighbours
+                        min_value != LABELS[read[index1 + CORE_LENGTH / 2 - 1] as usize] && 
+                        min_value != LABELS[read[index1 + CORE_LENGTH / 2 + 1] as usize] 
                         ) 
                     ) 
                 {
+
                     if min_value == -1 { index1 += 1; continue; }
 
                     cores.push_back( Core::new(index1 as u32, index2 as u32, std::str::from_utf8(&read[index1..index2]).unwrap() ) ); 
-                    index1 = index1 + core_length / 2 - 1;
+                    println!("found {} at index {}", std::str::from_utf8(&read[index1..index2]).unwrap(), index1);
+                    index1 = index1 + CORE_LENGTH / 2 - 1;
                 }
 
                 index1 += 1;
@@ -100,15 +111,13 @@ impl String {
     }
 
 
-    pub fn deepen(&mut self, core_len: Option<u32>, vb: Option<bool>) {
-        let core_length = core_len.unwrap_or(CORE_LENGTH) as usize;
-        let verbose = vb.unwrap_or(false);
+    pub fn deepen(&mut self) {
 
         // Compress cores
 
         for _ in 0..COMPRESSION_ITERATION_COUNT {
 
-            let mut max_bit_length: u32 = 0;
+            let mut max_bit_length: usize = 0;
 
             if self.cores.len() < 2 { return; }
 
@@ -133,14 +142,12 @@ impl String {
 
             self.cores.pop_front();
 
-            if verbose { 
-                println!("Compressed. Max length is: {}", max_bit_length);
+            info!("Compressed. Max length is: {}", max_bit_length);
 
-                println!("Finding new cores."); 
-            }
+            info!("Finding new cores."); 
         }
 
-              
+                
         // Find cores from compressed cores.
         let end = self.cores.len();
         let mut index1: usize = 0;
@@ -179,9 +186,9 @@ impl String {
 
             index2 = index1 + 1;
 
-            if index1 + core_length >= end { index1 += 1; continue; }
+            if index1 + CORE_LENGTH >= end { index1 += 1; continue; }
 
-            while index2 < index1 + core_length {
+            while index2 < index1 + CORE_LENGTH {
                 if self.cores[index2-1] == self.cores[index2] { break; }
 
                 if min_value > &self.cores[index2] { min_value = &self.cores[index2]; }
@@ -191,18 +198,18 @@ impl String {
                 index2 += 1;
             }
 
-            if index2 == index1 + core_length && 
+            if index2 == index1 + CORE_LENGTH && 
             (
-                min_value == &self.cores[index1 + core_length / 2] ||               // local minima
+                min_value == &self.cores[index1 + CORE_LENGTH / 2] ||               // local minima
                 (
-                    max_value == &self.cores[index1 + core_length / 2] &&           // local maxima without immediate local minima neighbours
-                    min_value != &self.cores[index1 + core_length / 2 - 1] && 
-                    min_value != &self.cores[index1 + core_length / 2 + 1] 
+                    max_value == &self.cores[index1 + CORE_LENGTH / 2] &&           // local maxima without immediate local minima neighbours
+                    min_value != &self.cores[index1 + CORE_LENGTH / 2 - 1] && 
+                    min_value != &self.cores[index1 + CORE_LENGTH / 2 + 1] 
                     ) 
                 ) 
             {
                 // cores.push_back( Core::new(index1 as u32, index2 as u32, std::str::from_utf8(&read[index1..index2]).unwrap() ) ); 
-                index1 = index1 + core_length / 2 - 1;
+                index1 = index1 + CORE_LENGTH / 2 - 1;
             }
 
             index1 += 1;
