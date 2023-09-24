@@ -1,9 +1,9 @@
 use crate::encoding::init_coefficients_default;
 use crate::encoding::init_coefficients_map;
 use crate::encoding::init_coefficients_file;
-use crate::encoding::COEFFICIENTS;
-use crate::encoding::CHARACTERS;
-use crate::encoding::DICT_BIT_SIZE;
+use crate::statics::LABELS;
+use crate::statics::CHARACTERS;
+use crate::statics::DICT_BIT_SIZE;
 use std::collections::HashMap;
 use crate::core::Core;
 use crate::String;
@@ -26,14 +26,14 @@ fn test_encoding_default() {
         let verbose = true;
         init_coefficients_default(verbose);
         
-        assert_eq!(COEFFICIENTS['A' as usize], 0); 
-        assert_eq!(COEFFICIENTS['a' as usize], 0);
-        assert_eq!(COEFFICIENTS['T' as usize], 3); 
-        assert_eq!(COEFFICIENTS['t' as usize], 3);
-        assert_eq!(COEFFICIENTS['G' as usize], 2); 
-        assert_eq!(COEFFICIENTS['g' as usize], 2);
-        assert_eq!(COEFFICIENTS['C' as usize], 1); 
-        assert_eq!(COEFFICIENTS['c' as usize], 1);
+        assert_eq!(LABELS['A' as usize], 0); 
+        assert_eq!(LABELS['a' as usize], 0);
+        assert_eq!(LABELS['T' as usize], 3); 
+        assert_eq!(LABELS['t' as usize], 3);
+        assert_eq!(LABELS['G' as usize], 2); 
+        assert_eq!(LABELS['g' as usize], 2);
+        assert_eq!(LABELS['C' as usize], 1); 
+        assert_eq!(LABELS['c' as usize], 1);
         
         assert_eq!(CHARACTERS[0], 'A');
         assert_eq!(CHARACTERS[1], 'C');
@@ -59,10 +59,10 @@ fn test_encoding_map() {
             ]);
         init_coefficients_map(map, verbose);
         
-        assert_eq!(COEFFICIENTS['a' as usize], 3);
-        assert_eq!(COEFFICIENTS['t' as usize], 1);
-        assert_eq!(COEFFICIENTS['g' as usize], 2);
-        assert_eq!(COEFFICIENTS['c' as usize], 0);
+        assert_eq!(LABELS['a' as usize], 3);
+        assert_eq!(LABELS['t' as usize], 1);
+        assert_eq!(LABELS['g' as usize], 2);
+        assert_eq!(LABELS['c' as usize], 0);
         
         assert_eq!(CHARACTERS[3], 'a');
         assert_eq!(CHARACTERS[0], 'c');
@@ -83,10 +83,10 @@ fn test_encoding_file() {
         let path = "src/encodings.txt";
         init_coefficients_file(path, verbose);
         
-        assert_eq!(COEFFICIENTS['a' as usize], 3);
-        assert_eq!(COEFFICIENTS['t' as usize], 1);
-        assert_eq!(COEFFICIENTS['g' as usize], 2);
-        assert_eq!(COEFFICIENTS['c' as usize], 0);
+        assert_eq!(LABELS['a' as usize], 3);
+        assert_eq!(LABELS['t' as usize], 1);
+        assert_eq!(LABELS['g' as usize], 2);
+        assert_eq!(LABELS['c' as usize], 0);
         
         assert_eq!(CHARACTERS[3], 'a');
         assert_eq!(CHARACTERS[0], 'c');
@@ -332,7 +332,7 @@ fn test_string_init() {
         let verbose = true;
         init_coefficients_default(verbose);
 
-        let string: String = String::new("GGGACCTGGTGACCCCAGCCCACGACAGCCAAGCGCCAGCTGAGCTCAGGTGTGAGGAGATCACAGTCCTCTGTAATAGGCTGTCCG", Some(5));
+        let string: String = String::new("GGGACCTGGTGACCCCAGCCCACGACAGCCAAGCGCCAGCTGAGCTCAGGTGTGAGGAGATCACAGTCCTCTGTAATAGGCTGTCCG");
 
         assert_eq!(string.get_small_cores(), [0b00010111, 0b11101011, 0b000101010100, 0b1001010100, 0b0110000100, 0b0001001001, 0b10010100, 0b01000010, 0b10010100, 0b1001111000, 0b1110001001, 0b1001110100, 0b00101011, 0b1011101110, 0b00101000, 0b0010001101, 0b1101000100, 0b0001001011, 0b11010111, 0b0111011110, 0b11000011, 0b00101001, 0b11010110]);
     }
