@@ -3,6 +3,7 @@ use crate::statics::DICT_BIT_SIZE;
 use crate::statics::ENCODING_INIT;
 use crate::statics::SIZE_PER_BLOCK;
 use crate::encoding::init_coefficients_default;
+use std::collections::VecDeque;
 use std::mem;
 use std::cmp;
 use std::cmp::Ordering;
@@ -16,76 +17,15 @@ pub struct Core {
 	start_index: usize,
 
 	// Core related variables
-	start: u32,
-	end: u32,
+	start: usize,
+	end: usize,
 }
 
 
 impl Core {
-	
-	pub fn new2(start: u32, end:u32, ch: char) -> Self {
 
-		unsafe {
-
-			if !ENCODING_INIT {
-				init_coefficients_default(false);
-			}
-
-			if DICT_BIT_SIZE >= SIZE_PER_BLOCK {
-				let block_number: usize = ( DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
-				let start_index: usize = block_number * SIZE_PER_BLOCK - DICT_BIT_SIZE;
-
-				// create a new mutable buffer with capacity `block_number`
-				let mut buf = Vec::with_capacity(block_number.try_into().unwrap());
-				// take a mutable pointer to the buffer
-				let ptr: *mut u8 = buf.as_mut_ptr();
-				// prevent the buffer from being deallocated when it goes out of scope
-				mem::forget(buf);
-
-				// clear dumps
-				for i in 0..block_number {
-					*ptr.add(i.try_into().unwrap()) &= 0;
-				}
-				// Encoding string to bits
-				let mut coefficient: i32 = LABELS[ch as usize];
-				let mut index: usize = block_number - 1;
-
-				while coefficient > 0 {
-					*ptr.add( index ) |= ( coefficient % 8 ) as u8;
-					coefficient = coefficient / 2;
-					index -= 1;
-				}
-
-				return Core {
-					ptr: ptr,
-					block_number: block_number,
-					start_index: start_index,
-					start: start,
-					end: end
-				};
-			}
-
-			// create a new mutable buffer with capacity `block_number`
-			let mut buf = Vec::with_capacity(1);
-			// take a mutable pointer to the buffer
-			let ptr: *mut u8 = buf.as_mut_ptr();
-			// prevent the buffer from being deallocated when it goes out of scope
-			mem::forget(buf);
-
-			*ptr.add(0) &= 0;
-			*ptr.add(0) |= LABELS[ch as usize] as u8;
-
-			Core {
-				ptr: ptr,
-				block_number: 1,
-				start_index: SIZE_PER_BLOCK - DICT_BIT_SIZE,
-				start: start,
-				end: end
-			}
-		}
-	}
-
-	pub fn new(start: u32, end:u32, string: &str) -> Self {
+	#[allow(dead_code)]
+	pub fn new(start: usize, end:usize, string: &str) -> Self {
 
 		unsafe {
 
@@ -109,17 +49,16 @@ impl Core {
 			}
 
 			// Encoding string to bits
-			let mut coefficient: usize;
 			let mut index: usize = 0;
 
 			for ch in string.chars() { 
-				coefficient = LABELS[ch as usize] as usize;
-				for i in (0..DICT_BIT_SIZE).rev() {
-					if coefficient % 2 == 1 {
-						*ptr.add( ( start_index + index + i ) / SIZE_PER_BLOCK ) |= 1 << ( SIZE_PER_BLOCK - ( start_index + index + i ) % SIZE_PER_BLOCK - 1 )  as u8;
-					}
-					coefficient = coefficient / 2;
+				if SIZE_PER_BLOCK - ( start_index + index ) % SIZE_PER_BLOCK >= DICT_BIT_SIZE {
+					*ptr.add( ( start_index + index) / SIZE_PER_BLOCK ) |= ( ( LABELS[ch as usize] as usize ) << ( SIZE_PER_BLOCK - ( start_index + index + DICT_BIT_SIZE ) % SIZE_PER_BLOCK ) % SIZE_PER_BLOCK ) as u8;	
+				} else {
+					*ptr.add( ( start_index + index ) / SIZE_PER_BLOCK ) |= ( ( LABELS[ch as usize] as usize ) >> ( start_index + index + DICT_BIT_SIZE ) % SIZE_PER_BLOCK ) as u8;
+					*ptr.add( ( start_index + index) / SIZE_PER_BLOCK  + 1 ) |= ( ( LABELS[ch as usize] as usize ) << ( SIZE_PER_BLOCK - ( start_index + index + DICT_BIT_SIZE ) % SIZE_PER_BLOCK ) % SIZE_PER_BLOCK ) as u8;
 				}
+				
 				index += DICT_BIT_SIZE;
 			}
 
@@ -129,6 +68,73 @@ impl Core {
 				start_index: start_index,
 				start: start,
 				end: end
+			}
+		}
+	}
+
+
+	#[allow(dead_code)]
+	pub fn new2(start: usize, end:usize, ch: char) -> Self {
+
+		unsafe {
+
+			if !ENCODING_INIT {
+				init_coefficients_default(false);
+			}
+
+			// create a new mutable buffer with capacity `block_number`
+			let mut buf = Vec::with_capacity(1);
+			// take a mutable pointer to the buffer
+			let ptr: *mut u8 = buf.as_mut_ptr();
+			// prevent the buffer from being deallocated when it goes out of scope
+			mem::forget(buf);
+
+			*ptr.add(0) &= 0;
+			*ptr.add(0) |= LABELS[ch as usize] as u8;
+
+			Core {
+				ptr: ptr,
+				block_number: 1,
+				start_index: SIZE_PER_BLOCK - DICT_BIT_SIZE,
+				start: start,
+				end: end
+			}
+		}
+	}
+
+
+	#[allow(dead_code)]
+	pub fn new3(start: usize, end:usize, cores: &VecDeque<Core>) -> Self {
+
+		unsafe {
+
+			if !ENCODING_INIT {
+				init_coefficients_default(false);
+			}
+			let new_cores = cores.into_iter().enumerate().filter(|&(_i, _v)| start <= _i && _i < end).map(|(_, v)| v).collect::<Vec<_>>();
+			let bit_count: usize = new_cores.iter().map(|s| s.get_bit_count()).sum();
+			let block_number = ( bit_count - 1 ) / SIZE_PER_BLOCK + 1;
+			let start_index = block_number * SIZE_PER_BLOCK - bit_count;
+
+			// create a new mutable buffer with capacity `block_number`
+			let mut buf = Vec::with_capacity(block_number);
+			// take a mutable pointer to the buffer
+			let ptr: *mut u8 = buf.as_mut_ptr();
+			// prevent the buffer from being deallocated when it goes out of scope
+			mem::forget(buf);
+
+			// clear dumps
+			for i in 0..block_number {
+				*ptr.add(i.try_into().unwrap()) &= 0;
+			}
+
+			
+			Core {
+				ptr: ptr,
+				block_number: block_number,
+				start_index: start_index,
+				start: cores[0].start,
+				end: cores[cores.len() - 1].end
 			}
 		}
 	}
@@ -190,9 +196,7 @@ impl Core {
 		// Compressed value is: index
 
 		// deallocate previous core
-		unsafe {
-			Vec::from_raw_parts(self.ptr, self.block_number as usize, self.block_number as usize);
-		}
+		unsafe { Vec::from_raw_parts(self.ptr, self.block_number as usize, self.block_number as usize); }
 
 		// Change this object according to  the new values represents compressed version.
 		self.block_number = (new_bit_size - 1) / SIZE_PER_BLOCK + 1;
@@ -232,10 +236,11 @@ impl Core {
 	#[allow(dead_code)]
 	pub fn show(&self) {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
+		print!("0b");
 		for value in values {
-			print!("{:b}", value);
+			print!("{:08b}", value);
 		}
-		println!();
+		print!(" ");
 	}
 
 	#[inline(always)]
