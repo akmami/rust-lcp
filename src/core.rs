@@ -128,13 +128,33 @@ impl Core {
 				*ptr.add(i.try_into().unwrap()) &= 0;
 			}
 
-			
+			let mut index: usize = block_number * SIZE_PER_BLOCK - 1;
+
+			for core in new_cores.iter().rev() {
+				for (i, block) in core.get_blocks().iter().enumerate().rev() {
+					if index >= SIZE_PER_BLOCK {
+						*ptr.add( index / SIZE_PER_BLOCK ) |= block << ( SIZE_PER_BLOCK - index % SIZE_PER_BLOCK - 1 );
+						if index % SIZE_PER_BLOCK != SIZE_PER_BLOCK - 1 {
+							*ptr.add( index / SIZE_PER_BLOCK - 1) |= block >> ( index % SIZE_PER_BLOCK  + 1 );
+						}
+						if i == 0 {
+							index -= SIZE_PER_BLOCK - core.get_start_index();
+						} else {
+							index -= SIZE_PER_BLOCK;
+						}
+					} else {
+						*ptr.add( index / SIZE_PER_BLOCK ) |= block << ( SIZE_PER_BLOCK - index % SIZE_PER_BLOCK - 1);
+						index -= SIZE_PER_BLOCK - core.get_start_index();
+					}
+				}
+			}
+
 			Core {
 				ptr: ptr,
 				block_number: block_number,
 				start_index: start_index,
-				start: cores[0].start,
-				end: cores[cores.len() - 1].end
+				start: cores[start].start,
+				end: cores[end-1].end
 			}
 		}
 	}
@@ -156,7 +176,6 @@ impl Core {
 			t_block_index -= 1;
 			o = o_values[o_block_index as usize];
 			t = t_values[t_block_index as usize];
-
 		}
 
 		if o_block_index > 0 {
@@ -237,7 +256,10 @@ impl Core {
 	pub fn show(&self) {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
 		print!("0b");
-		for value in values {
+		for index in self.start_index..SIZE_PER_BLOCK {
+			print!("{}", ( values[0] >> ( SIZE_PER_BLOCK - index - 1 ) ) % 2  );
+		}
+		for value in values[1..].iter() {
 			print!("{:08b}", value);
 		}
 		print!(" ");
