@@ -18,7 +18,7 @@ pub struct String {
 
 impl String {
 
-    pub fn new(string: &str) -> Self {
+    pub fn new(string: &str, id: &str) -> Self {
         unsafe {
             if string.len() < 3 { 
                 error!("Given string ({}) is too small!", string); 
@@ -77,6 +77,8 @@ impl String {
 
             cores.make_contiguous();
 
+            info!("String processing completed for id: {}", id);
+            
             String {
                 level: 1,
                 cores: cores
@@ -149,30 +151,32 @@ impl String {
     }
 
     pub fn dct(&mut self) {
-        
+
         // deterministic cion tossing
 
-        for _ in 0..COMPRESSION_ITERATION_COUNT {
+        for i in 0..COMPRESSION_ITERATION_COUNT {
 
             if self.cores.len() < 2 { return; }
 
             let mut max_bit_length: usize = 0;
             let end = self.cores.len();
             let mut mut_iter = self.cores.iter_mut().rev();
-            let mut lhs = mut_iter.next().unwrap();
+            let mut rhs = mut_iter.next().unwrap();
             let mut index = 1;
 
             while index < end {
-                let rhs = mut_iter.next().unwrap();
+                let lhs = mut_iter.next().unwrap();
                 index += 1;
+
+                
                 rhs.compress(lhs);
                 max_bit_length = cmp::max(max_bit_length, rhs.get_bit_count());
-                lhs = rhs;
+                rhs = lhs;
             }
 
             self.cores.pop_front();
-            info!("Compressed. Max length is: {}", max_bit_length);
-            info!("Finding new cores."); 
+            println!("Compression iteration index {}. Max length is: {}", i, max_bit_length);
+            println!("Finding new cores.");
         }
     }
 
