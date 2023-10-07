@@ -11,14 +11,14 @@ use log::{info, error};
 
 
 pub struct String {
-    level: u32,
-    cores: VecDeque<Core>
+    pub level: u32,
+    pub cores: VecDeque<Core>
 }
 
 
 impl String {
 
-    pub fn new(string: &str, id: &str) -> Self {
+    pub fn new(string: &str) -> Self {
         unsafe {
             if string.len() < 3 { 
                 error!("Given string ({}) is too small!", string); 
@@ -76,8 +76,6 @@ impl String {
             }
 
             cores.make_contiguous();
-
-            info!("String processing completed for id: {}", id);
             
             String {
                 level: 1,
@@ -180,19 +178,10 @@ impl String {
         }
     }
 
-    pub fn extract_cores() {
-
-    }
-
-    pub fn get_small_cores(&self) -> Vec<u32> {
-        let mut cores: Vec<u32> = vec![];
+    pub fn get_small_cores(&self) -> Vec<u64> {
+        let mut cores: Vec<u64> = vec![];
         for core in &self.cores {
-            let mut value: u32 = 0;
-            for block in core.get_blocks() {
-                value = value << 8;
-                value |= *block as u32;
-            }
-            cores.push(value);
+            cores.push(core.encode());
         }
         cores
     }
