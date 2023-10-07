@@ -17,8 +17,8 @@ pub struct Core {
 	start_index: usize,
 
 	// Core related variables
-	start: usize,
-	end: usize,
+	pub start: usize,
+	pub end: usize,
 }
 
 
@@ -270,6 +270,17 @@ impl Core {
 	pub fn get_blocks(&self) -> &[u8] {
 		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
 		return values;
+	}
+
+	#[inline(always)]
+	#[allow(dead_code)]
+	pub fn encode(&self) -> u64 {
+		let values = unsafe { std::slice::from_raw_parts(self.ptr, self.block_number as usize) };
+		let mut encoding: u64 = 0;
+		for (index, value) in values.iter().rev().enumerate().filter(|&(i, _x)| i < 4){
+			encoding |= (*value as u64) << (index * 8);
+		}
+		return encoding;
 	}
 
 	#[inline(always)]

@@ -7,7 +7,7 @@ use crate::statics::LABELS;
 use crate::core::Core;
 use std::cmp;
 use std::collections::VecDeque;
-use log::{info, error};
+use log::error;
 
 
 pub struct String {
