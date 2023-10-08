@@ -43,7 +43,7 @@ impl Core {
 	/// * `str` - substring that will be processed with lcp algorithm.
 	///
 	#[allow(dead_code)]
-	pub fn from_str(start: usize, end:usize, string: &str) -> Self {
+	pub fn from_str(start: usize, string: &str) -> Self {
 
 		unsafe {
 
@@ -81,7 +81,7 @@ impl Core {
 				block_number: block_number,
 				start_index: start_index,
 				start: start,
-				end: end
+				end: start+string.len()
 			}
 		}
 	}
@@ -97,7 +97,7 @@ impl Core {
 	/// * `ch` - character that will be used to create Core.
 	///
 	#[allow(dead_code)]
-	pub fn from_char(start: usize, end: usize, ch: char) -> Self {
+	pub fn from_char(start: usize, ch: char) -> Self {
 
 		unsafe {
 
@@ -116,7 +116,7 @@ impl Core {
 				block_number: 1,
 				start_index: SIZE_PER_BLOCK - DICT_BIT_SIZE,
 				start: start,
-				end: end
+				end: start+1
 			}
 		}
 	}
@@ -133,7 +133,7 @@ impl Core {
 	/// * `cores` - Cores that will be concatinated into single Core.
 	///
 	#[allow(dead_code)]
-	pub fn from_cores(start: usize, end:usize, cores: &VecDeque<Core>) -> Self {
+	pub fn from_cores(start: usize, end: usize, cores: &VecDeque<Core>) -> Self {
 
 		unsafe {
 
