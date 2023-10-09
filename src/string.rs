@@ -13,21 +13,36 @@ use log::error;
 
 
 pub struct String {
+    /// Level of LCP algorithm being called. This parameter
+    /// is autamatically updated as deepen() func called.
     pub level: u32,
+    /// This vector is used to store cores of given string.
+    /// Each core belongs to same level and order is as increasing
+    /// order in terms of start indexes. I have used VecDeque as I
+    /// needed to insert to tail and remove from head efficiently while 
+    /// increasing the level.
     pub cores: VecDeque<Core>
 }
 
 
 impl String {
 
+    /// Constructor of String with given str. This String does not stores the actual character array
+    /// but the cores and level that defınes the lcp.
+	/// 
+	/// # Arguments
+	/// 
+	/// * `str` - string that will be processed with lcp algorithm.
+	///
     pub fn new(string: &str) -> Self {
         
         unsafe {
-
+            // make sure that encodings are initialized
             if !ENCODING_INIT {
 				init_coefficients_default(false);
 			}
 
+            // if minimum lenght is 3 as 0-level cores have length of 3 as there is no compression yet.
             if string.len() < 3 { 
                 error!("Given string ({}) is too small!", string); 
                 return String {
@@ -70,12 +85,12 @@ impl String {
                     continue;
                 }
 
-                if LABELS[read[index1 + 1] as usize] < LABELS[read[index1] as usize] && LABELS[read[index1 + 1] as usize] < LABELS[read[index1 + 2] as usize] ||           // local minima
+                if LABELS[read[index1 + 1] as usize] < LABELS[read[index1] as usize] && LABELS[read[index1 + 1] as usize] < LABELS[read[index1 + 2] as usize] ||                // local minima
                     (
-                        LABELS[read[index1 + 1 ] as usize] > LABELS[read[index1 ] as usize] && LABELS[read[index1 + 1 ] as usize] > LABELS[read[index1 + 2 ] as usize] &&       // local maxima without immediate local minima neighbours
-                        !(LABELS[read[index1] as usize] < LABELS[read[index1 + 1 ] as usize] && LABELS[read[index1] as usize] < LABELS[read[index1 - 1 ] as usize]) &&
-                        !(LABELS[read[index1 + 2 ] as usize] < LABELS[read[index1 + 3 ] as usize] && LABELS[read[index1 + 2 ] as usize] < LABELS[read[index1 + 1 ] as usize]) 
-                        ) 
+                        LABELS[read[index1 + 1] as usize] > LABELS[read[index1] as usize] && LABELS[read[index1 + 1] as usize] > LABELS[read[index1 + 2] as usize] &&       // local maxima without immediate local minima neighbours
+                        !(LABELS[read[index1] as usize] < LABELS[read[index1 + 1] as usize] && LABELS[read[index1] as usize] < LABELS[read[index1 - 1] as usize]) &&
+                        !(LABELS[read[index1 + 2] as usize] < LABELS[read[index1 + 3] as usize] && LABELS[read[index1 + 2] as usize] < LABELS[read[index1 + 1] as usize]) 
+                    ) 
                 {
                     cores.push_back( Core::from_str(index1, std::str::from_utf8(&read[index1..(index1+3)]).unwrap() ) ); 
                 }
@@ -83,6 +98,7 @@ impl String {
                 index1 += 1;
             }
 
+            // this is done to make VecDeque elements stored contiguous. It can be removed.
             cores.make_contiguous();
             
             String {
@@ -92,6 +108,37 @@ impl String {
         }
     }
 
+    /// This fuction calls lcp algorithm to increase level multiple time. 
+    /// Instead of calling lcp multiple times as if the number is greater than 2,
+    /// this funcion can be called.
+	/// 
+	/// # Arguments
+	/// 
+	/// * `self` - this function needs to access core.
+    /// * `level` - number of times that lcp needs to be called.
+	///
+    pub fn deepen_multiple(&mut self, level: u32) {
+        for _ in 0..level {
+            self.deepen();
+        }
+    }
+
+    /// This fuction calls lcp algorithm to increase level once. 
+    /// The lcp algorithm uses 2 rules when increasing the level using the available cores
+    /// at that instance:
+    ///     1 - middle core's label is local minimum compared to its neighbors
+    ///     2 - middle core's label is local maximum compared to its neighbors while none if its neighbors are local minima
+    ///     3 - core contains multiple cores that has same label in the middle.
+    /// While increasing the level, compression (deterministic coin tossing) is done. the compression algoritm is implemented
+    /// and described under Core struct. Since dct is used to compress values with its left neighor, they will have affect on
+    /// the labels in core that meets one of the rules. So, cores from the left hand side besides the original core will be taken
+    /// to compose new core. The number of cores from left hand side to be taken will be determined from the number of iteration
+    /// of compression is done (3 + COMPRESSION_ITERATION_COUNT == NEW CORE LENGTH at new level).
+	/// 
+	/// # Arguments
+	/// 
+	/// * `self` - this function needs to access core.
+	///
     pub fn deepen(&mut self) {
 
         // Compress cores
@@ -156,11 +203,17 @@ impl String {
         self.level += 1;
     }
 
+    /// This fuction compresses each core with respect to its left neigbor. The total number of dct
+    /// should be defined as static variable.
+	/// # Arguments
+	/// 
+	/// * `self` - this function needs to access core.
+	///
     pub fn dct(&mut self) {
 
         // deterministic cion tossing
 
-        for i in 0..COMPRESSION_ITERATION_COUNT {
+        for _ in 0..COMPRESSION_ITERATION_COUNT {
 
             if self.cores.len() < 2 { return; }
 
@@ -181,11 +234,19 @@ impl String {
             }
 
             self.cores.pop_front();
-            println!("Compression iteration index {}. Max length is: {}", i, max_bit_length);
-            println!("Finding new cores.");
+            // println!("Compression iteration index {}. Max length is: {}", i, max_bit_length);
+            // println!("Finding new cores.");
         }
     }
 
+    /// This fuction returns labels of cores as u64 type.
+    /// For some of the cores, u64 might not be enough to represent core,
+    /// as the cores that has repetıtıve character can have great length.
+    /// In that case, only 64 bits from right hand side will be used.
+	/// # Arguments
+	/// 
+	/// * `self` - this function needs to access core.
+	///
     pub fn get_small_cores(&self) -> Vec<u64> {
         let mut cores: Vec<u64> = vec![];
         for core in &self.cores {
