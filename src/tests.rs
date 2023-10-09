@@ -5,6 +5,7 @@ use crate::statics::LABELS;
 use crate::statics::CHARACTERS;
 use crate::statics::DICT_BIT_SIZE;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use crate::core::Core;
 use crate::String;
 
@@ -139,6 +140,31 @@ fn test_core_encoding_ch() {
         assert_eq!(core.block_number, 1);
         assert_eq!(core.start_index, 6);
         assert_eq!(core.get_blocks(), [0b01]);
+    }
+    //drop(guard);
+}
+
+
+#[test]
+fn test_core_concatination() {
+    //let guard = mtx.lock().unwrap();
+
+    // A/a=0, T/t=3, G/g=2, C/c=1
+    unsafe {
+        let verbose = true;
+        init_coefficients_default(verbose);
+
+        let core1: Core = Core::from_char(1, 'C');
+        let core2: Core = Core::from_char(1, 'G');
+        let core3: Core = Core::from_str(1, "ATC");
+        let core4: Core = Core::from_str(1, "TTTCAG");
+        let core5: Core = Core::from_char(1, 'A');
+        println!("concatination started.");
+
+        let core6 = Core::from_cores(0, 5, &&VecDeque::from(vec![core1, core2, core3, core4, core5]));
+        println!("concatination is done.");
+        println!("{}", core6.encode());
+        assert_eq!(core6.encode(), 0b011000110111111101001000);
     }
     //drop(guard);
 }

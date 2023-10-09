@@ -1,9 +1,11 @@
-mod statics;
-mod encoding;
-mod core;
+pub mod statics;
+pub mod encoding;
+pub mod core;
 use crate::statics::COMPRESSION_ITERATION_COUNT;
 use crate::statics::CORE_LENGTH;
 use crate::statics::LABELS;
+use crate::statics::ENCODING_INIT;
+use crate::encoding::init_coefficients_default;
 use crate::core::Core;
 use std::cmp;
 use std::collections::VecDeque;
@@ -19,7 +21,13 @@ pub struct String {
 impl String {
 
     pub fn new(string: &str) -> Self {
+        
         unsafe {
+
+            if !ENCODING_INIT {
+				init_coefficients_default(false);
+			}
+
             if string.len() < 3 { 
                 error!("Given string ({}) is too small!", string); 
                 return String {
@@ -48,7 +56,7 @@ impl String {
                     if index2 == end { break; }
 
                     index2 += 1;
-                    cores.push_back( Core::new(index1, index2, std::str::from_utf8(&read[index1..index2]).unwrap() ) );
+                    cores.push_back( Core::from_str(index1, std::str::from_utf8(&read[index1..index2]).unwrap() ) );
                     index1 = index2 - 3;
                     continue;
                 }
@@ -69,7 +77,7 @@ impl String {
                         !(LABELS[read[index1 + 2 ] as usize] < LABELS[read[index1 + 3 ] as usize] && LABELS[read[index1 + 2 ] as usize] < LABELS[read[index1 + 1 ] as usize]) 
                         ) 
                 {
-                    cores.push_back( Core::new(index1, index1+3, std::str::from_utf8(&read[index1..(index1+3)]).unwrap() ) ); 
+                    cores.push_back( Core::from_str(index1, std::str::from_utf8(&read[index1..(index1+3)]).unwrap() ) ); 
                 }
 
                 index1 += 1;
@@ -111,7 +119,7 @@ impl String {
 
                 if index2 == end { break; }
 
-                self.cores.push_back( Core::new3(index1, index2, &self.cores) ); 
+                self.cores.push_back( Core::from_cores(index1, index2, &self.cores) ); 
                 index1 += 1;
 
                 continue;
@@ -137,7 +145,7 @@ impl String {
                 ) 
             ) 
             {
-                self.cores.push_back( Core::new3(index1, index2, &self.cores) ); 
+                self.cores.push_back( Core::from_cores(index1, index2, &self.cores) ); 
             }
 
             index1 += 1;
