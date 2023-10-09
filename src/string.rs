@@ -126,14 +126,20 @@ impl String {
     /// This fuction calls lcp algorithm to increase level once. 
     /// The lcp algorithm uses 2 rules when increasing the level using the available cores
     /// at that instance:
+    /// 
     ///     1 - middle core's label is local minimum compared to its neighbors
+    /// 
     ///     2 - middle core's label is local maximum compared to its neighbors while none if its neighbors are local minima
+    /// 
     ///     3 - core contains multiple cores that has same label in the middle.
+    /// 
     /// While increasing the level, compression (deterministic coin tossing) is done. the compression algoritm is implemented
     /// and described under Core struct. Since dct is used to compress values with its left neighor, they will have affect on
     /// the labels in core that meets one of the rules. So, cores from the left hand side besides the original core will be taken
     /// to compose new core. The number of cores from left hand side to be taken will be determined from the number of iteration
-    /// of compression is done (3 + COMPRESSION_ITERATION_COUNT == NEW CORE LENGTH at new level).
+    /// of compression is done.
+    /// 
+    /// (3 + COMPRESSION_ITERATION_COUNT == NEW CORE LENGTH at new level)
 	/// 
 	/// # Arguments
 	/// 
