@@ -127,11 +127,11 @@ impl String {
     /// The lcp algorithm uses 2 rules when increasing the level using the available cores
     /// at that instance:
     /// 
-    ///     1 - middle core's label is local minimum compared to its neighbors
+    ///  - middle core's label is local minimum compared to its neighbors
     /// 
-    ///     2 - middle core's label is local maximum compared to its neighbors while none if its neighbors are local minima
+    ///  - middle core's label is local maximum compared to its neighbors while none if its neighbors are local minima
     /// 
-    ///     3 - core contains multiple cores that has same label in the middle.
+    ///  - core contains multiple cores that has same label in the middle.
     /// 
     /// While increasing the level, compression (deterministic coin tossing) is done. the compression algoritm is implemented
     /// and described under Core struct. Since dct is used to compress values with its left neighor, they will have affect on
