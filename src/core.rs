@@ -381,31 +381,31 @@ impl PartialEq for Core {
 	/// * `self` - Core that will be used as lhs.
 	/// * `other` - Core that will be used as rhs
 	///
-    fn eq(&self, other: &Self) -> bool {
+	fn eq(&self, other: &Self) -> bool {
 
-    	if self.block_number != other.block_number {
-    		return false;
-    	}
+		if self.block_number != other.block_number {
+			return false;
+		}
 
-    	if self.start_index != other.start_index {
-    		return false;
-    	}
+		if self.start_index != other.start_index {
+			return false;
+		}
 
-    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
-    		if self_block != other_block {
-    			return false;
-    		}
-    	}
-    	return true;
-    }
+		for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+			if self_block != other_block {
+				return false;
+			}
+		}
+		return true;
+	}
 }
 
 
 impl PartialOrd for Core {
 
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
+		Some(self.cmp(other))
+	}
 
 	/// Less-than operator (<) is overloaded for Core comparison.
 	/// 
@@ -415,26 +415,26 @@ impl PartialOrd for Core {
 	///
 	fn lt(&self, other: &Self) -> bool { 
 		if self.block_number < other.block_number {
-    		return true;
-    	} else if self.block_number > other.block_number {
-    		return false;
-    	}
+			return true;
+		} else if self.block_number > other.block_number {
+			return false;
+		}
 
-    	if self.start_index > other.start_index {
-    		return true;
-    	} else if self.start_index < other.start_index {
-    		return false;
-    	}
+		if self.start_index > other.start_index {
+			return true;
+		} else if self.start_index < other.start_index {
+			return false;
+		}
 
-    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
-    		if self_block < other_block {
-    			return true;
-    		} else if self_block > other_block {
-    			return false;
-    		}
-    	}
+		for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+			if self_block < other_block {
+				return true;
+			} else if self_block > other_block {
+				return false;
+			}
+		}
 
-    	return false;
+		return false;
 	}
 
 	/// Less-than-or-equal-to operator (<=) is overloaded for Core comparison.
@@ -443,29 +443,29 @@ impl PartialOrd for Core {
 	/// * `self` - Core that will be used as lhs.
 	/// * `other` - Core that will be used as rhs
 	///
-    fn le(&self, other: &Self) -> bool {
-    	if self.block_number < other.block_number {
-    		return true;
-    	} else if self.block_number > other.block_number {
-    		return false;
-    	}
+	fn le(&self, other: &Self) -> bool {
+		if self.block_number < other.block_number {
+			return true;
+		} else if self.block_number > other.block_number {
+			return false;
+		}
 
-    	if self.start_index > other.start_index {
-    		return true;
-    	} else if self.start_index < other.start_index {
-    		return false;
-    	}
+		if self.start_index > other.start_index {
+			return true;
+		} else if self.start_index < other.start_index {
+			return false;
+		}
 
-    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
-    		if self_block < other_block {
-    			return true;
-    		} else if self_block > other_block {
-    			return false;
-    		}
-    	}
+		for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+			if self_block < other_block {
+				return true;
+			} else if self_block > other_block {
+				return false;
+			}
+		}
 
-    	return true;
-    }
+		return true;
+	}
 
 	/// Greater-than operator (<) is overloaded for Core comparison.
 	/// 
@@ -473,29 +473,29 @@ impl PartialOrd for Core {
 	/// * `self` - Core that will be used as lhs.
 	/// * `other` - Core that will be used as rhs
 	///
-    fn gt(&self, other: &Self) -> bool {
-    	if self.block_number > other.block_number {
-    		return true;
-    	} else if self.block_number < other.block_number {
-    		return false;
-    	}
+	fn gt(&self, other: &Self) -> bool {
+		if self.block_number > other.block_number {
+			return true;
+		} else if self.block_number < other.block_number {
+			return false;
+		}
 
-    	if self.start_index < other.start_index {
-    		return true;
-    	} else if self.start_index > other.start_index {
-    		return false;
-    	}
+		if self.start_index < other.start_index {
+			return true;
+		} else if self.start_index > other.start_index {
+			return false;
+		}
 
-    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
-    		if self_block > other_block {
-    			return true;
-    		} else if self_block < other_block {
-    			return false;
-    		}
-    	}
+		for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+			if self_block > other_block {
+				return true;
+			} else if self_block < other_block {
+				return false;
+			}
+		}
 
-    	return false;
-    }
+		return false;
+	}
 
 	/// Greater-than-or-equal-to operator (>=) is overloaded for Core comparison.
 	/// 
@@ -503,27 +503,27 @@ impl PartialOrd for Core {
 	/// * `self` - Core that will be used as lhs.
 	/// * `other` - Core that will be used as rhs
 	///
-    fn ge(&self, other: &Self) -> bool {
-    	if self.block_number > other.block_number {
-    		return true;
-    	} else if self.block_number < other.block_number {
-    		return false;
-    	}
+	fn ge(&self, other: &Self) -> bool {
+		if self.block_number > other.block_number {
+			return true;
+		} else if self.block_number < other.block_number {
+			return false;
+		}
 
-    	if self.start_index < other.start_index {
-    		return true;
-    	} else if self.start_index > other.start_index {
-    		return false;
-    	}
+		if self.start_index < other.start_index {
+			return true;
+		} else if self.start_index > other.start_index {
+			return false;
+		}
 
-    	for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
-    		if self_block > other_block {
-    			return true;
-    		} else if self_block < other_block {
-    			return false;
-    		}
-    	}
+		for (self_block, other_block) in self.get_blocks().iter().zip(other.get_blocks()) {
+			if self_block > other_block {
+				return true;
+			} else if self_block < other_block {
+				return false;
+			}
+		}
 
-    	return true;
-    }
+		return true;
+	}
 }
