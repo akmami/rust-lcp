@@ -163,14 +163,16 @@ impl Core {
 						if index % SIZE_PER_BLOCK != SIZE_PER_BLOCK - 1 {
 							*ptr.add( index / SIZE_PER_BLOCK - 1) |= block >> ( index % SIZE_PER_BLOCK  + 1 );
 						}
-						if i == 0 {
-							index -= SIZE_PER_BLOCK - core.start_index;
-						} else {
-							index -= SIZE_PER_BLOCK;
-						}
 					} else {
 						*ptr.add( index / SIZE_PER_BLOCK ) |= block << ( SIZE_PER_BLOCK - index % SIZE_PER_BLOCK - 1);
-						index -= SIZE_PER_BLOCK - core.start_index;
+					}
+					if i == 0 {
+						if index > SIZE_PER_BLOCK - core.start_index {
+							index -= SIZE_PER_BLOCK - core.start_index;
+						}
+					}
+					else {
+						index -= SIZE_PER_BLOCK;
 					}
 				}
 			}
