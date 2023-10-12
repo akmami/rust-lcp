@@ -371,6 +371,31 @@ fn test_string_init() {
 }
 
 
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+// TESTS FOR STRING
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+#[test]
+fn test_string_init_from_u8() {
+    //let guard = mtx.lock().unwrap();
+
+    // A/a=0, T/t=3, G/g=2, C/c=1
+    unsafe {
+        let verbose = true;
+        init_coefficients_default(verbose);
+        let sequence = "GGGACCTGGTGACCCCAGCCCACGACAGCCAAGCGCCAGCTGAGCTCAGGTGTGAGGAGATCACAGTCCTCTGTAATAGGCTGTCCG";
+        let string: String = String::from_u8(sequence.as_bytes());
+
+        assert_eq!(string.get_small_cores(), [0b100001, 0b10111, 0b11110, 0b11101011, 0b101110, 0b100001, 0b000101010100, 0b10010, 0b1001010100,
+        0b10001, 0b100001, 0b10010, 0b10010100, 0b1000010, 0b100110, 0b10010100, 0b10010, 0b100111, 0b100010, 0b100111, 0b10010, 0b101011,
+        0b111011, 0b100010, 0b101000, 0b100010, 0b100011, 0b10001, 0b10010, 0b101101, 0b11010111, 0b110111, 0b111011, 0b11000011, 0b110010,
+        0b101001, 0b100111, 0b111011, 0b11010110]);
+    }
+    //drop(guard);
+}
+
+
 #[test]
 fn test_string_compress() {
     //let guard = mtx.lock().unwrap();

@@ -108,6 +108,87 @@ impl String {
 		}
 	}
 
+	/// Constructor of String with given [u8]. This String does not stores the actual character array
+	/// but the cores and level that defines the lcp.
+	/// 
+	/// # Arguments
+	/// 
+	/// * `string` - string given in [u8] format that will be processed with lcp algorithm.
+	///
+	pub fn from_u8(string: &[u8]) -> Self {
+		
+		unsafe {
+			// make sure that encodings are initialized
+			if !ENCODING_INIT {
+				init_coefficients_default(false);
+			}
+
+			// if minimum lenght is 3 as 0-level cores have length of 3 as there is no compression yet.
+			if string.len() < 3 { 
+				error!("Given string ({}) is too small!", std::str::from_utf8(string).unwrap()); 
+				return String {
+					level: 1,
+					cores: VecDeque::new()
+				};
+			}
+
+			let mut index1: usize = 0;
+			let mut index2: usize;
+			let end = string.len();
+			let mut cores: VecDeque<Core> = VecDeque::new();
+			
+			while index1 + 1 < end && string[index1] == string[index1+1] { index1 += 1; }
+
+			while index1 + 2 < end {
+				if string[index1] == string[index1+1] { index1 += 1; continue; }
+				
+				// if there are same characters in subsequenct order such as xyyz, xyyyz, .... where x!=y and y!=z
+				if LABELS[string[index1+1] as usize] == LABELS[string[index1+2] as usize] {
+					index2 = index1 + 3;
+
+					while index2 < end && string[index2-1] == string[index2] { index2 += 1; }
+
+					if index2 == end { break; }
+
+					index2 += 1;
+					cores.push_back( Core::from_str(index1, std::str::from_utf8(&string[index1..index2]).unwrap() ) );
+					index1 = index2 - 3;
+					continue;
+				}
+
+				// if there is no subsequent characters such as xyz where z!=y and y!=z
+
+				if end < index1 + 3 { break; }
+
+				if LABELS[string[index1 + 1] as usize] == LABELS[string[index1 + 2 ] as usize] {
+					index1 += 1;
+					continue;
+				}
+
+				if LABELS[string[index1 + 1] as usize] < LABELS[string[index1] as usize] && LABELS[string[index1 + 1] as usize] < LABELS[string[index1 + 2] as usize] ||                // local minima
+					(
+						LABELS[string[index1 + 1] as usize] > LABELS[string[index1] as usize] && LABELS[string[index1 + 1] as usize] > LABELS[string[index1 + 2] as usize] &&       // local maxima without immediate local minima neighbours
+						!(LABELS[string[index1] as usize] < LABELS[string[index1 + 1] as usize] && LABELS[string[index1] as usize] < LABELS[string[index1 - 1] as usize]) &&
+						!(LABELS[string[index1 + 2] as usize] < LABELS[string[index1 + 3] as usize] && LABELS[string[index1 + 2] as usize] < LABELS[string[index1 + 1] as usize]) 
+					) 
+				{
+					cores.push_back( Core::from_str(index1, std::str::from_utf8(&string[index1..(index1+3)]).unwrap() ) ); 
+				}
+
+				index1 += 1;
+			}
+
+			// this is done to make VecDeque elements stored contiguous. It can be removed.
+			cores.make_contiguous();
+			
+			String {
+				level: 1,
+				cores: cores
+			}
+		}
+	}
+	
+
 	/// This fuction calls lcp algorithm to increase level multiple time. 
 	/// Instead of calling lcp multiple times as if the number is greater than 2,
 	/// this funcion can be called.
