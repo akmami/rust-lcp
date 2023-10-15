@@ -1,7 +1,6 @@
 use crate::statics::LABELS;
 use crate::statics::DICT_BIT_SIZE;
 use crate::statics::SIZE_PER_BLOCK;
-use std::collections::VecDeque;
 use std::mem;
 use std::cmp;
 use std::cmp::Ordering;
@@ -87,6 +86,59 @@ impl Core {
 	}
 
 
+	/// Constructor of Core from [u8].
+	/// Given vector or bytes, which are characters of the string, will be encoded to numberical value.
+	///
+	/// # Arguments
+	/// 
+	/// * `start` - start position of given substring within original string.
+	/// * `str` - substring that will be processed with lcp algorithm.
+	///
+	#[allow(dead_code)]
+	pub fn from_u8(start: usize, string: &[u8]) -> Self {
+
+		unsafe {
+
+			let block_number: usize = ( string.len() * DICT_BIT_SIZE - 1) / SIZE_PER_BLOCK + 1;
+			let start_index: usize = block_number * SIZE_PER_BLOCK - string.len() * DICT_BIT_SIZE;
+
+			// create a new mutable buffer with capacity `block_number`
+			let mut buf = Vec::with_capacity(block_number.try_into().unwrap());
+			// take a mutable pointer to the buffer
+			let ptr: *mut u8 = buf.as_mut_ptr();
+			// prevent the buffer from being deallocated when it goes out of scope
+			mem::forget(buf);
+
+			// clear dumps
+			for i in 0..block_number {
+				*ptr.add(i.try_into().unwrap()) &= 0;
+			}
+
+			// Encoding string to bits
+			let mut index: usize = 0;
+
+			for ch in string { 
+				if SIZE_PER_BLOCK - ( start_index + index ) % SIZE_PER_BLOCK >= DICT_BIT_SIZE {
+					*ptr.add( ( start_index + index) / SIZE_PER_BLOCK ) |= ( ( LABELS[*ch as usize] as usize ) << ( SIZE_PER_BLOCK - ( start_index + index + DICT_BIT_SIZE ) % SIZE_PER_BLOCK ) % SIZE_PER_BLOCK ) as u8;	
+				} else {
+					*ptr.add( ( start_index + index ) / SIZE_PER_BLOCK ) |= ( ( LABELS[*ch as usize] as usize ) >> ( start_index + index + DICT_BIT_SIZE ) % SIZE_PER_BLOCK ) as u8;
+					*ptr.add( ( start_index + index) / SIZE_PER_BLOCK  + 1 ) |= ( ( LABELS[*ch as usize] as usize ) << ( SIZE_PER_BLOCK - ( start_index + index + DICT_BIT_SIZE ) % SIZE_PER_BLOCK ) % SIZE_PER_BLOCK ) as u8;
+				}
+				
+				index += DICT_BIT_SIZE;
+			}
+
+			Core {
+				ptr: ptr,
+				block_number: block_number,
+				start_index: start_index,
+				start: start,
+				end: start+string.len()
+			}
+		}
+	}
+
+
 	/// Constructor of Core from character.
 	/// Character is converted to binary representation by given encoding values of characters. This is basically
 	/// numerical value for given character.
@@ -133,12 +185,11 @@ impl Core {
 	/// * `cores` - Cores that will be concatinated into single Core.
 	///
 	#[allow(dead_code)]
-	pub fn from_cores(start: usize, end: usize, cores: &VecDeque<Core>) -> Self {
+	pub fn from_cores(cores: &[Core]) -> Self {
 
 		unsafe {
 
-			let new_cores = cores.into_iter().enumerate().filter(|&(_i, _v)| start <= _i && _i < end).map(|(_, v)| v).collect::<Vec<_>>();
-			let bit_count: usize = new_cores.iter().map(|s| s.get_bit_count()).sum();
+			let bit_count: usize = cores.iter().map(|s| s.get_bit_count()).sum();
 			let block_number = ( bit_count - 1 ) / SIZE_PER_BLOCK + 1;
 			let start_index = block_number * SIZE_PER_BLOCK - bit_count;
 
@@ -156,7 +207,7 @@ impl Core {
 
 			let mut index: usize = block_number * SIZE_PER_BLOCK - 1;
 
-			for core in new_cores.iter().rev() {
+			for core in cores.iter().rev() {
 				for (i, block) in core.get_blocks().iter().enumerate().rev() {
 					if index >= SIZE_PER_BLOCK {
 						*ptr.add( index / SIZE_PER_BLOCK ) |= block << ( SIZE_PER_BLOCK - index % SIZE_PER_BLOCK - 1 );
@@ -181,8 +232,8 @@ impl Core {
 				ptr: ptr,
 				block_number: block_number,
 				start_index: start_index,
-				start: cores[start].start,
-				end: cores[end-1].end
+				start: cores[0].start,
+				end: cores.last().unwrap().end
 			}
 		}
 	}
