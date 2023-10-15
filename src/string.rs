@@ -2,13 +2,11 @@ pub mod statics;
 pub mod encoding;
 pub mod core;
 use crate::statics::COMPRESSION_ITERATION_COUNT;
-use crate::statics::CORE_LENGTH;
 use crate::statics::LABELS;
 use crate::statics::ENCODING_INIT;
 use crate::encoding::init_coefficients_default;
 use crate::core::Core;
 use std::cmp;
-use std::collections::VecDeque;
 use log::error;
 
 
@@ -21,7 +19,7 @@ pub struct String {
 	/// order in terms of start indexes. I have used VecDeque as I
 	/// needed to insert to tail and remove from head efficiently while 
 	/// increasing the level.
-	pub cores: VecDeque<Core>
+	pub cores: Vec<Core>
 }
 
 
@@ -35,7 +33,9 @@ impl String {
 	/// * `str` - string that will be processed with lcp algorithm.
 	///
 	pub fn new(string: &str) -> Self {
-		
+		// str can be converted to &[u8] with as_bytes() func.
+		// hence, there is no need to duplicate code.
+		// return Self::from_u8(&string.as_bytes());
 		unsafe {
 			// make sure that encodings are initialized
 			if !ENCODING_INIT {
@@ -47,59 +47,55 @@ impl String {
 				error!("Given string ({}) is too small!", string); 
 				return String {
 					level: 1,
-					cores: VecDeque::new()
+					cores: Vec::new()
 				};
 			}
 
-			let mut index1: usize = 0;
 			let mut index2: usize;
 			let end = string.len();
 			let read = string.as_bytes();
-			let mut cores: VecDeque<Core> = VecDeque::new();
-
-			while index1 + 1 < end && read[index1] == read[index1+1] { index1 += 1; }
-
-			while index1 + 2 < end {
-				if read[index1] == read[index1+1] { index1 += 1; continue; }
+			let mut cores: Vec<Core> = Vec::new();
+			
+			// index here should be taken as index + 1 in read as window does not starts with core but with left neighour
+			// window consists of 5 characters and the core that is being processed is middle 3 character.
+			for (index, window) in read.windows(5).enumerate() {
 				
-				// if there are same characters in subsequenct order such as xyyz, xyyyz, .... where x!=y and y!=z
-				if LABELS[read[index1+1] as usize] == LABELS[read[index1+2] as usize] {
-					index2 = index1 + 3;
+				if window[1] == window[2] { continue; }
 
-					while index2 < end && read[index2-1] == read[index2] { index2 += 1; }
+				// if there are same characters in subsequenct order such as xyyz, xyyyz, .... where x!=y and y!=z
+				if window[2] == window[3] { 
+					index2 = index + 3;
+					
+					let mut prev: u8 = window[3];
+					for ch in &read[index2..] {
+						if prev != *ch  { break; }
+						
+						prev = *ch;
+						index2 += 1;
+					}
 
 					if index2 == end { break; }
 
 					index2 += 1;
-					cores.push_back( Core::from_str(index1, std::str::from_utf8(&read[index1..index2]).unwrap() ) );
-					index1 = index2 - 3;
+					
+					cores.push( Core::from_str(index + 1, std::str::from_utf8(&read[index+1..index2]).unwrap() ) );
 					continue;
 				}
 
 				// if there is no subsequent characters such as xyz where z!=y and y!=z
 
-				if end < index1 + 3 { break; }
+				// if window[0] == window[1] || window[3] == window[4] { continue; } // should we add this?
 
-				if LABELS[read[index1 + 1] as usize] == LABELS[read[index1 + 2 ] as usize] {
-					index1 += 1;
-					continue;
-				}
-
-				if LABELS[read[index1 + 1] as usize] < LABELS[read[index1] as usize] && LABELS[read[index1 + 1] as usize] < LABELS[read[index1 + 2] as usize] ||                // local minima
+				if LABELS[window[2] as usize] < LABELS[window[1] as usize] && LABELS[window[2] as usize] < LABELS[window[3] as usize] ||	// local minima
 					(
-						LABELS[read[index1 + 1] as usize] > LABELS[read[index1] as usize] && LABELS[read[index1 + 1] as usize] > LABELS[read[index1 + 2] as usize] &&       // local maxima without immediate local minima neighbours
-						!(LABELS[read[index1] as usize] < LABELS[read[index1 + 1] as usize] && LABELS[read[index1] as usize] < LABELS[read[index1 - 1] as usize]) &&
-						!(LABELS[read[index1 + 2] as usize] < LABELS[read[index1 + 3] as usize] && LABELS[read[index1 + 2] as usize] < LABELS[read[index1 + 1] as usize]) 
+						LABELS[window[2] as usize] > LABELS[window[1] as usize] && LABELS[window[2] as usize] > LABELS[window[3] as usize] &&       // local maxima without immediate local minima neighbours
+						!(LABELS[window[1] as usize] < LABELS[window[2] as usize] && LABELS[window[1] as usize] < LABELS[window[0] as usize]) &&
+						!(LABELS[window[3] as usize] < LABELS[window[4] as usize] && LABELS[window[3] as usize] < LABELS[window[2] as usize]) 
 					) 
 				{
-					cores.push_back( Core::from_str(index1, std::str::from_utf8(&read[index1..(index1+3)]).unwrap() ) ); 
+					cores.push( Core::from_str(index + 1, std::str::from_utf8(&window[1..4]).unwrap() ) ); 
 				}
-
-				index1 += 1;
 			}
-
-			// this is done to make VecDeque elements stored contiguous. It can be removed.
-			cores.make_contiguous();
 			
 			String {
 				level: 1,
@@ -128,59 +124,56 @@ impl String {
 				error!("Given string ({}) is too small!", std::str::from_utf8(string).unwrap()); 
 				return String {
 					level: 1,
-					cores: VecDeque::new()
+					cores: Vec::new()
 				};
 			}
 
-			let mut index1: usize = 0;
 			let mut index2: usize;
 			let end = string.len();
-			let mut cores: VecDeque<Core> = VecDeque::new();
+			let mut cores: Vec<Core> = Vec::new();
 			
-			while index1 + 1 < end && string[index1] == string[index1+1] { index1 += 1; }
+			// index here should be taken as index + 1 in read as window does not starts with core but with left neighour
+			// window consists of 5 characters and the core that is being processed is middle 3 character.
+			for (index, window) in string.windows(5).enumerate() {
 
-			while index1 + 2 < end {
-				if string[index1] == string[index1+1] { index1 += 1; continue; }
+				if window[1] == window[2] { continue; }
 				
 				// if there are same characters in subsequenct order such as xyyz, xyyyz, .... where x!=y and y!=z
-				if LABELS[string[index1+1] as usize] == LABELS[string[index1+2] as usize] {
-					index2 = index1 + 3;
 
-					while index2 < end && string[index2-1] == string[index2] { index2 += 1; }
+				if window[2] == window[3] {
+
+					index2 = index + 3;
+
+					let mut prev: u8 = window[3];
+					for ch in &string[index2..] {
+						if prev != *ch  { break; }
+						
+						prev = *ch;
+						index2 += 1;
+					}
 
 					if index2 == end { break; }
 
 					index2 += 1;
-					cores.push_back( Core::from_str(index1, std::str::from_utf8(&string[index1..index2]).unwrap() ) );
-					index1 = index2 - 3;
+					cores.push( Core::from_u8(index + 1, &string[index+1..index2]) );
 					continue;
 				}
 
 				// if there is no subsequent characters such as xyz where z!=y and y!=z
 
-				if end < index1 + 3 { break; }
+				// if window[0] == window[1] || window[3] == window[4] { continue; } // should we add this?
 
-				if LABELS[string[index1 + 1] as usize] == LABELS[string[index1 + 2 ] as usize] {
-					index1 += 1;
-					continue;
-				}
-
-				if LABELS[string[index1 + 1] as usize] < LABELS[string[index1] as usize] && LABELS[string[index1 + 1] as usize] < LABELS[string[index1 + 2] as usize] ||                // local minima
+				if LABELS[window[2] as usize] < LABELS[window[1] as usize] && LABELS[window[2] as usize] < LABELS[window[3] as usize] ||	// local minima
 					(
-						LABELS[string[index1 + 1] as usize] > LABELS[string[index1] as usize] && LABELS[string[index1 + 1] as usize] > LABELS[string[index1 + 2] as usize] &&       // local maxima without immediate local minima neighbours
-						!(LABELS[string[index1] as usize] < LABELS[string[index1 + 1] as usize] && LABELS[string[index1] as usize] < LABELS[string[index1 - 1] as usize]) &&
-						!(LABELS[string[index1 + 2] as usize] < LABELS[string[index1 + 3] as usize] && LABELS[string[index1 + 2] as usize] < LABELS[string[index1 + 1] as usize]) 
+						LABELS[window[2] as usize] > LABELS[window[1] as usize] && LABELS[window[2] as usize] > LABELS[window[3] as usize] &&       // local maxima without immediate local minima neighbours
+						!(LABELS[window[1] as usize] < LABELS[window[2] as usize] && LABELS[window[1] as usize] < LABELS[window[0] as usize]) &&
+						!(LABELS[window[3] as usize] < LABELS[window[4] as usize] && LABELS[window[3] as usize] < LABELS[window[2] as usize]) 
 					) 
 				{
-					cores.push_back( Core::from_str(index1, std::str::from_utf8(&string[index1..(index1+3)]).unwrap() ) ); 
+					cores.push( Core::from_u8(index + 1, &window[1..4]) ); 
 				}
-
-				index1 += 1;
 			}
 
-			// this is done to make VecDeque elements stored contiguous. It can be removed.
-			cores.make_contiguous();
-			
 			String {
 				level: 1,
 				cores: cores
@@ -233,60 +226,52 @@ impl String {
 				
 		// Find cores from compressed cores.
 		let end = self.cores.len();
-		let mut index1: usize = 0;
 		let mut index2: usize;
+		let mut cores: Vec<Core> = Vec::new();
 
-		while index1 < end -1 && self.cores[index1] == self.cores[index1+1] { index1 += 1; }
+		for (index, window) in self.cores.windows(5).enumerate().skip(2*COMPRESSION_ITERATION_COUNT-1) {
+			
+			if window[4].end - window[0].start >= 10000 { continue; }
 
-		while index1 + 2 < end {
-
-			if self.cores[index1] == self.cores[index1+1] { index1 += 1; continue; }
+			if window[1] == window[2] { continue; }
 				
 			// if there are same characters in subsequenct order such as xyyz, xyyyz, .... where x!=y and y!=z
-			if self.cores[index1+1] == self.cores[index1+2] {
-
-				index2 = index1 + 3;
-
-				while index2 < end && self.cores[index2-1] == self.cores[index2] {
+			if window[2] == window[3] { 
+				index2 = index + 3;
+				
+				let mut prev: &Core = &window[3];
+				for ch in &self.cores[index2..] {
+					if prev != ch  { break; }
+					
+					prev = ch;
 					index2 += 1;
 				}
 
 				if index2 == end { break; }
 
-				self.cores.push_back( Core::from_cores(index1, index2, &self.cores) ); 
-				index1 += 1;
-
+				index2 += 1;
+				
+				cores.push( Core::from_cores(&self.cores[index+1..index2]) );
 				continue;
 			}
 
 			// if there is no subsequent characters such as xyzuv where z!=y and y!=z and z!=u and u!=v
-			index2 = index1 + 1;
+			
+			// if window[0] == window[1] || window[3] == window[4] { continue; } // should we add this?
 
-			if index1 + CORE_LENGTH >= end { index1 += 1; continue; }
-
-			while index2 < index1 + CORE_LENGTH {
-				if self.cores[index2-1] == self.cores[index2] { break; }
-				index2 += 1;
-			}
-
-			if index2 == index1 + CORE_LENGTH && self.cores[index2-1] != self.cores[index2] &&
-			(
-				self.cores[index1 + CORE_LENGTH - 2 ] < self.cores[index1 + CORE_LENGTH - 1 ] && self.cores[index1 + CORE_LENGTH - 2 ] < self.cores[index1 + CORE_LENGTH - 3 ] ||           // local minima
+			if window[2] < window[1] && window[2] < window[3] ||           // local minima
 				(
-					self.cores[index1 + CORE_LENGTH - 2 ] > self.cores[index1 + CORE_LENGTH - 1 ] && self.cores[index1 + CORE_LENGTH - 2 ] > self.cores[index1 + CORE_LENGTH - 3 ] &&       // local maxima without immediate local minima neighbours
-					!(self.cores[index1 + CORE_LENGTH - 3 ] < self.cores[index1 + CORE_LENGTH - 2 ] && self.cores[index1 + CORE_LENGTH - 3 ] < self.cores[index1 + CORE_LENGTH - 4 ]) &&
-					!(self.cores[index1 + CORE_LENGTH - 1 ] < self.cores[index1 + CORE_LENGTH ] && self.cores[index1 + CORE_LENGTH - 1 ] < self.cores[index1 + CORE_LENGTH - 2 ]) 
-				) 
-			) 
+					window[2] > window[1] && window[2] > window[3] &&       // local maxima without immediate local minima neighbours
+					!(window[1] < window[2] && window[1] < window[0]) &&
+					!(window[3] < window[4] && window[3] < window[2]) 
+				)
 			{
-				self.cores.push_back( Core::from_cores(index1, index2, &self.cores) ); 
+				cores.push( Core::from_cores(&self.cores[index+1-COMPRESSION_ITERATION_COUNT..index+4]) ); 
 			}
-
-			index1 += 1;
 		}
 
-		self.cores.drain(0..end);
-		self.cores.make_contiguous();
+		//self.cores.drain(0..end);
+		self.cores = cores;
 		self.level += 1;
 	}
 
@@ -298,9 +283,9 @@ impl String {
 	///
 	pub fn dct(&mut self) {
 
-		// deterministic cion tossing
+		// deterministic coin tossing
 
-		for _ in 0..COMPRESSION_ITERATION_COUNT {
+		for iter_index in 0..COMPRESSION_ITERATION_COUNT {
 
 			if self.cores.len() < 2 { return; }
 
@@ -310,7 +295,7 @@ impl String {
 			let mut rhs = mut_iter.next().unwrap();
 			let mut index = 1;
 
-			while index < end {
+			while index < end - iter_index {
 				let lhs = mut_iter.next().unwrap();
 				index += 1;
 
@@ -320,10 +305,12 @@ impl String {
 				rhs = lhs;
 			}
 
-			self.cores.pop_front();
 			// println!("Compression iteration index {}. Max length is: {}", i, max_bit_length);
 			// println!("Finding new cores.");
 		}
+
+		// be aware that the first N elements where N=COMPRESSION_ITERATION_COUNT is not removed from the Vec.
+		// this is because drain/remove function compies all items in the right to left which makes the operation O(n).
 	}
 
 	/// This fuction returns labels of cores as u64 type.
